@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>&#x622A;&#x8BCD;&#x82F1;&#x8BED;&#x5B66;&#x4E60;&#x52A9;&#x624B;</title>
+  <link rel="stylesheet" href="popup-styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1 id="titleLink">&#x622A;&#x8BCD;&#x82F1;&#x8BED;&#x5B66;&#x4E60;&#x52A9;&#x624B;</h1>
+
+    <div class="control-section">
+      <label>显示模式：</label>
+      <div class="mode-slider-container">
+        <input type="range" id="displayModeSlider" min="0" max="2" step="1" value="0">
+        <div class="mode-slider-track">
+          <div class="mode-slider-thumb"></div>
+        </div>
+        <div class="mode-labels">
+          <span class="mode-label" data-mode="0">关闭</span>
+          <span class="mode-label" data-mode="1">下划线</span>
+          <span class="mode-label" data-mode="2">标注</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-section">
+      <label>标注模式：</label>
+      <div class="mode-slider-container">
+        <input type="range" id="annotationModeSlider" min="0" max="2" step="1" value="1">
+        <div class="mode-slider-track">
+          <div class="mode-slider-thumb"></div>
+        </div>
+        <div class="mode-labels">
+          <span class="mode-label" data-mode="0">中→英</span>
+          <span class="mode-label" data-mode="1">自动</span>
+          <span class="mode-label" data-mode="2">英→中</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-section">
+      <label>智能去重：</label>
+      <div class="mode-slider-container">
+        <input type="range" id="dedupeModeSlider" min="0" max="2" step="1" value="1">
+        <div class="mode-slider-track">
+          <div class="mode-slider-thumb"></div>
+        </div>
+        <div class="mode-labels">
+          <span class="mode-label" data-mode="0">关闭</span>
+          <span class="mode-label" data-mode="1">单网页内不重复</span>
+          <span class="mode-label" data-mode="2">一定次数内不重复</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-section stats-inline">
+      <div class="stat-item">
+        <span class="stat-label">&#x603B;&#x8BCD;&#x6761;&#x6570;&#xFF1A;</span>
+        <span id="totalWords" class="stat-value">0</span>
+      </div>
+      <div class="stat-item" id="languageRatioRow" style="display: none;">
+        <span class="stat-label">&#x4E2D;&#x6587;&#x5360;&#x6BD4;&#xFF1A;</span>
+        <span id="chineseRatio" class="stat-value">-</span>
+      </div>
+      <div class="stat-item" id="languageRatioRowEn" style="display: none;">
+        <span class="stat-label">&#x82F1;&#x6587;&#x5360;&#x6BD4;&#xFF1A;</span>
+        <span id="englishRatio" class="stat-value">-</span>
+      </div>
+    </div>
+
+    <div class="vocabulary-section">
+      <div class="settings-header" id="vocabularyToggle">
+        <h2>词库管理 (<span id="fileCount">0</span>)</h2>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="settings-content" id="vocabularyContent">
+        <div class="import-controls">
+          <input type="file" id="fileInput" accept=".json" multiple style="display: none;">
+          <button id="importBtn" class="btn btn-primary">&#x9009;&#x62E9;&#x6587;&#x4EF6;</button>
+          <button id="downloadBtn" class="btn btn-secondary">&#x4ECE;&#x670D;&#x52A1;&#x5668;&#x4E0B;&#x8F7D;</button>
+          <span id="importStatus" class="import-status"></span>
+        </div>
+        <div id="filesList" class="files-list"></div>
+      </div>
+    </div>
+
+    <!-- 下载词库模态框 -->
+    <div id="downloadModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>从服务器下载词库</h3>
+          <button class="modal-close" id="modalClose">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+          <div class="loading-spinner" id="loadingSpinner">加载中...</div>
+          <div class="dict-list" id="dictList"></div>
+          <div class="download-progress" id="downloadProgress" style="display: none;">
+            <div class="progress-info">
+              <span id="downloadingDict">正在下载...</span>
+              <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-header" id="advancedToggle">
+        <h2>高级设置</h2>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="settings-content" id="advancedContent">
+        <div class="setting-item">
+          <label for="maxMatchesSlider">单句标注上限：</label>
+          <div class="range-row">
+            <input type="range" id="maxMatchesSlider" min="1" max="9" value="3">
+            <span id="maxMatchesLabel" class="range-label">3</span>
+            <input type="number" id="maxMatchesInput" min="0" value="3">
+          </div>
+          <span class="setting-hint">0 表示不限制，最高一档为无限，上一档为 8</span>
+        </div>
+        <div class="setting-item smart-toggle-row">
+          <div class="setting-main">
+            <label for="smartSkipCodeLinks">智能跳过代码链接：</label>
+            <label class="switch">
+              <input type="checkbox" id="smartSkipCodeLinks">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <span class="setting-hint">开启后不处理链接和代码内容</span>
+        </div>
+        <div class="setting-item">
+          <label for="minTextLength">容器最小字数：</label>
+          <div class="range-row">
+            <input type="range" id="minTextLength" min="0" max="200" value="10" step="10">
+            <span id="minTextLengthLabel" class="range-label">10</span>
+          </div>
+          <span class="setting-hint">容器内容少于此字数时不添加标注，0 表示不限制</span>
+        </div>
+        <div class="setting-item">
+          <label for="dedupeRepeatCount">去重间隔次数：</label>
+          <div class="range-row">
+            <input type="range" id="dedupeRepeatCount" min="10" max="200" value="50" step="10">
+            <span id="dedupeRepeatCountLabel" class="range-label">50</span>
+          </div>
+          <span class="setting-hint">仅在“一定次数内不重复”模式下生效</span>
+        </div>
+        <div class="setting-item">
+          <label for="clearDedupeCounts">删除单词次数统计：</label>
+          <button id="clearDedupeCounts" class="btn btn-delete">删除</button>
+          <span class="setting-hint">清空跨页面的去重计数</span>
+        </div>
+        <div class="setting-item">
+          <label for="highlightMode">标注颜色：</label>
+          <div class="color-row">
+            <select id="highlightMode">
+              <option value="none">不更改颜色</option>
+              <option value="auto">&#x81EA;&#x52A8;</option>
+              <option value="custom">&#x81EA;&#x5B9A;&#x4E49;</option>
+            </select>
+            <input type="color" id="highlightColor" value="#2196f3">
+          </div>
+          <span class="setting-hint">不更改颜色使用默认蓝色；自动会根据页面背景选择高对比度颜色</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="help-link">
+      <a href="http://jieci.top/help.html" target="_blank" rel="noopener noreferrer">&#x70B9;&#x6B64;&#x67E5;&#x770B;&#x5E2E;&#x52A9;&#x6587;&#x6863;</a>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
