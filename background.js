@@ -1,4 +1,5 @@
 // background.js - 后台服务脚本
+import initJieba, * as jieba from './vendor/jieba_rs_wasm.js';
 
 // Trie树构建（用于预处理词库）
 class TrieNode {
@@ -120,7 +121,58 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 });
 
 // 保持 service worker 活跃（如果需要）
+
+// Jieba wasm loader runs in the extension context to avoid page CSP/COEP issues.
+let jiebaModule = null;
+let jiebaReady = null;
+
+
+async function ensureJiebaReady() {
+  if (jiebaReady) {
+    return jiebaReady;
+  }
+  const wasmUrl = chrome.runtime.getURL('vendor/jieba_rs_wasm_bg.wasm');
+  jiebaReady = (async () => {
+    const resp = await fetch(wasmUrl);
+    const bytes = await resp.arrayBuffer();
+    await initJieba({ module_or_path: bytes });
+    jiebaModule = jieba;
+    return jieba;
+  })().catch((error) => {
+    console.error('Failed to initialize jieba-wasm in background:', error);
+    jiebaModule = null;
+    return null;
+  });
+  return jiebaReady;
+}
+
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // 可以在这里处理来自 content script 或 popup 的消息
+  if (!message || message.type !== 'jieba-tokenize') {
+    return false;
+  }
+
+  if (typeof message.text !== 'string' || message.text.length === 0) {
+    sendResponse({ ok: true, tokens: [] });
+    return true;
+  }
+
+  (async () => {
+    const mod = await ensureJiebaReady();
+    if (!mod) {
+      sendResponse({ ok: false, error: 'jieba-unavailable' });
+      return;
+    }
+    try {
+      const tokens = mod.tokenize(message.text, 'default', true);
+      sendResponse({ ok: true, tokens });
+    } catch (error) {
+      console.error('jieba tokenize failed:', error);
+      sendResponse({ ok: false, error: 'jieba-failed' });
+    }
+  })();
+
   return true;
 });
+
+// SPA navigation is handled inside the page (content script) to avoid webNavigation permission.

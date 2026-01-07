@@ -93,10 +93,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const filesList = document.getElementById('filesList');
   const fileCount = document.getElementById('fileCount');
   const totalWords = document.getElementById('totalWords');
-  const languageRatioRow = document.getElementById('languageRatioRow');
-  const languageRatioRowEn = document.getElementById('languageRatioRowEn');
-  const chineseRatio = document.getElementById('chineseRatio');
-  const englishRatio = document.getElementById('englishRatio');
   const maxMatchesSlider = document.getElementById('maxMatchesSlider');
   const maxMatchesLabel = document.getElementById('maxMatchesLabel');
   const maxMatchesInput = document.getElementById('maxMatchesInput');
@@ -287,7 +283,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateAnnotationModeSliderUI(value);
 
     await chrome.storage.local.set({ annotationMode: mode });
-    updateLanguageStats(mode);
 
     await notifyActiveTabs({
       action: 'updateMode',
@@ -741,7 +736,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     displayFilesList(vocabList);
     updateStats(vocabList);
-    updateLanguageStats(annotationMode);
   }
 
   function displayFilesList(vocabList) {
@@ -798,42 +792,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   function updateStats(vocabList) {
     const total = vocabList.reduce((sum, vocab) => sum + vocab.wordCount, 0);
     totalWords.textContent = total;
-  }
-
-  async function updateLanguageStats(annotationMode) {
-    const isAuto = annotationMode === 'auto';
-    const displayValue = isAuto ? 'flex' : 'none';
-    languageRatioRow.style.display = displayValue;
-    languageRatioRowEn.style.display = displayValue;
-    chineseRatio.textContent = '-';
-    englishRatio.textContent = '-';
-    if (!isAuto) {
-      return;
-    }
-
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tabs.length || tabs[0].id == null) {
-      return;
-    }
-
-    try {
-      const response = await chrome.tabs.sendMessage(tabs[0].id, {
-        action: 'getLanguageStats'
-      });
-      if (!response || !response.stats) {
-        return;
-      }
-      const cnRatio = response.stats.chineseRatio;
-      const enRatio = response.stats.englishRatio;
-      if (typeof cnRatio === 'number') {
-        chineseRatio.textContent = `${(cnRatio * 100).toFixed(1)}%`;
-      }
-      if (typeof enRatio === 'number') {
-        englishRatio.textContent = `${(enRatio * 100).toFixed(1)}%`;
-      }
-    } catch (error) {
-      // 忽略无法访问内容脚本的页面
-    }
   }
 
   async function notifyContentScripts() {
