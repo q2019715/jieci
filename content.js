@@ -192,6 +192,372 @@ let dedupeSaveTimer = null;
 
 const EN_SEGMENTER = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('en', { granularity: 'word' }) : null;
 
+// ========== 词库合并相关函数 ==========
+
+// 标准化词性（去除空格、统一小写等）
+function normalizeType(type) {
+  if (!type) return '';
+  return type.trim().toLowerCase();
+}
+
+// 分割翻译字符串为单独的词义
+function splitMeanings(translation) {
+  if (!translation) return [];
+  return translation.split(/[,，、；;]/).map(m => m.trim()).filter(m => m.length > 0);
+}
+
+// 合并翻译：按词性分组，去重词义，记录来源
+function mergeTranslations(existingData, newTranslations, sourceName) {
+  if (!newTranslations || !Array.isArray(newTranslations)) return;
+
+  newTranslations.forEach(trans => {
+    const type = normalizeType(trans.type) || '_default';
+    const meanings = splitMeanings(trans.translation);
+
+    if (!existingData.byType[type]) {
+      existingData.byType[type] = {
+        type: trans.type || '', // 保留原始格式用于显示
+        meanings: [],
+        sources: []
+      };
+    }
+
+    const typeData = existingData.byType[type];
+
+    // 添加新的词义（去重）
+    meanings.forEach(meaning => {
+      if (!typeData.meanings.includes(meaning)) {
+        typeData.meanings.push(meaning);
+      }
+    });
+
+    // 添加来源（去重）
+    if (sourceName && !typeData.sources.includes(sourceName)) {
+      typeData.sources.push(sourceName);
+    }
+  });
+}
+
+// 合并短语：去重，记录来源
+function mergePhrases(existingPhrases, newPhrases, sourceName) {
+  if (!newPhrases || !Array.isArray(newPhrases)) return;
+
+  newPhrases.forEach(phrase => {
+    const phraseText = phrase.phrase;
+    if (!phraseText) return;
+
+    // 查找是否已存在该短语
+    let existing = existingPhrases.find(p => p.phrase === phraseText);
+
+    if (!existing) {
+      existing = {
+        phrase: phraseText,
+        translations: [],
+        sources: []
+      };
+      existingPhrases.push(existing);
+    }
+
+    // 合并翻译（兼容不同字段命名）
+    const translationCandidates = [];
+    if (Array.isArray(phrase.translations)) {
+      translationCandidates.push(...phrase.translations);
+    } else if (Array.isArray(phrase.trans)) {
+      translationCandidates.push(...phrase.trans);
+    } else if (Array.isArray(phrase.meanings)) {
+      translationCandidates.push(...phrase.meanings);
+    } else if (typeof phrase.translation === 'string') {
+      translationCandidates.push(phrase.translation);
+    } else if (typeof phrase.trans === 'string') {
+      translationCandidates.push(phrase.trans);
+    }
+    translationCandidates.forEach(t => {
+      if (!t) {
+        return;
+      }
+      if (!existing.translations.includes(t)) {
+        existing.translations.push(t);
+      }
+    });
+
+    // 添加来源
+    if (sourceName && !existing.sources.includes(sourceName)) {
+      existing.sources.push(sourceName);
+    }
+  });
+}
+
+// 创建空的合并数据结构
+function createEmptyMergedData(word) {
+  return {
+    word: word,
+    byType: {},           // { 'n': { type: 'n', meanings: [...], sources: [...] }, ... }
+    phrases: [],          // [{ phrase, translations, sources }, ...]
+    sources: [],          // 所有来源词库
+    wordLength: word.length
+  };
+}
+
+// 从合并后的数据中获取第一个词义（用于行内显示）
+// preferredPOS: 优先使用的词性（可选）
+function getFirstMeaning(data, preferredPOS = null) {
+  if (!data || !data.byType) return '';
+
+  // 如果指定了优先词性，先尝试匹配
+  if (preferredPOS) {
+    const matchedType = findMatchingType(data.byType, preferredPOS);
+    if (matchedType && data.byType[matchedType] && data.byType[matchedType].meanings.length > 0) {
+      return data.byType[matchedType].meanings[0];
+    }
+  }
+
+  // 按词性优先级排序（名词 > 动词 > 形容词 > 其他）
+  const typeOrder = ['n', 'v', 'vt', 'vi', 'adj', 'adv', '_default'];
+  const types = Object.keys(data.byType);
+
+  for (const t of typeOrder) {
+    if (types.includes(t) && data.byType[t].meanings.length > 0) {
+      return data.byType[t].meanings[0];
+    }
+  }
+
+  // 如果没有匹配优先级，返回第一个可用的
+  for (const t of types) {
+    if (data.byType[t].meanings.length > 0) {
+      return data.byType[t].meanings[0];
+    }
+  }
+
+  return '';
+}
+
+// ========== 词库合并相关函数结束 ==========
+
+// ========== 词性推断相关函数 ==========
+
+// 请求 jieba 词性标注
+function requestJiebaTags(text) {
+  return new Promise((resolve) => {
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+      resolve(null);
+      return;
+    }
+    chrome.runtime.sendMessage({ type: 'jieba-tag', text }, (response) => {
+      if (chrome.runtime.lastError) {
+        debugLog('jieba tag failed:', chrome.runtime.lastError);
+        resolve(null);
+        return;
+      }
+      if (!response || !response.ok || !Array.isArray(response.tags)) {
+        resolve(null);
+        return;
+      }
+      resolve(response.tags);
+    });
+  });
+}
+
+// 标准化 jieba 词性到简单词性
+function normalizeJiebaTag(tag) {
+  if (!tag) return '';
+  const t = tag.toLowerCase();
+  // jieba 词性映射：n=名词, v=动词, a=形容词, d=副词, r=代词, etc.
+  if (t.startsWith('n')) return 'n';    // n, nr, ns, nt, nz...
+  if (t.startsWith('v')) return 'v';    // v, vd, vn...
+  if (t.startsWith('a')) return 'adj';  // a, ad, an...
+  if (t === 'd') return 'adv';
+  return t;
+}
+
+// 英文词性推断（基于上下文规则）
+const EN_FUNCTION_WORDS = new Set([
+  'the', 'a', 'an', 'this', 'that', 'these', 'those', 'my', 'your', 'his', 'her', 'its', 'our', 'their',
+  'some', 'any', 'no', 'every', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
+  'will', 'would', 'can', 'could', 'shall', 'should', 'may', 'might', 'must', 'do', 'does', 'did',
+  'to', 'of', 'in', 'on', 'at', 'by', 'for', 'with', 'about', 'from', 'into', 'through', 'during', 'after',
+  'before', 'above', 'below', 'between', 'under', 'over', 'and', 'or', 'but', 'if', 'then', 'than'
+]);
+// 英文词性推断（启发式规则）
+function inferEnglishPOS(text, wordStart, wordEnd) {
+  const prevText = text.substring(Math.max(0, wordStart - 15), wordStart).toLowerCase();
+  const nextText = text.substring(wordEnd, Math.min(text.length, wordEnd + 10)).toLowerCase();
+  const word = text.substring(wordStart, wordEnd).toLowerCase();
+  const nextWordMatch = nextText.match(/^\s*([a-zA-Z]+)/);
+  const nextWord = nextWordMatch ? nextWordMatch[1].toLowerCase() : '';
+  const candidates = [];
+  const addCandidate = (pos, score, rule, method = 'rule') => {
+    candidates.push({ pos, score, method, rule });
+  };
+  // 规则1：冠词/指示词/物主限定词 + word → 更可能是名词
+  if (/\b(the|a|an|this|that|these|those|my|your|his|her|its|our|their|some|any|no|every)\s*$/.test(prevText)) {
+    addCandidate('n', 0.6, '冠词/限定词');
+  }
+  // 规则2：to + word → 更可能是动词原形
+  if (/\bto\s*$/.test(prevText)) {
+    addCandidate('v', 0.95, '`to` 后');
+  }
+  // 规则3：情态/助动词 + word → 更可能是动词
+  if (/\b(will|would|can|could|shall|should|may|might|must|do|does|did)\s*$/.test(prevText)) {
+    addCandidate('v', 0.9, '情态/助动词后');
+  }
+  // 规则4：be 系动词/助动词 + word → -ing 更偏动词；否则可能是形容词（表语）
+  if (/\b(am|is|are|was|were|be|been|being)\s*$/.test(prevText)) {
+    if (word.endsWith('ing')) {
+      addCandidate('v', 0.85, 'be + -ing');
+    }
+    addCandidate('adj', 0.7, 'be 后表语');
+  }
+  // have/has/had + -ed → 更可能是过去分词作动词
+  if (/\b(have|has|had)\s*$/.test(prevText) && word.endsWith('ed')) {
+    addCandidate('v', 0.85, 'have/has/had + -ed');
+  }
+  // 主语代词后面 → 更可能接动词
+  if (/\b(i|you|he|she|it|we|they)\s*$/.test(prevText)) {
+    addCandidate('v', 0.75, '主语代词后');
+  }
+  // 规则5：介词 + word → 更可能是名词/名词短语
+  if (/\b(in|on|at|by|for|with|about|from|into|through|during|before|after|above|below|between|under|over)\s*$/.test(prevText)) {
+    addCandidate('n', 0.7, '介词后');
+  }
+  // 规则6：-ly 结尾 → 更可能是副词
+  if (word.endsWith('ly')) {
+    addCandidate('adv', 0.7, '-ly 后缀');
+  }
+  // 程度副词（very/so/too...）后面通常接形容词或副词
+  if (/\b(very|so|too|quite|rather|really|extremely)\s*$/.test(prevText)) {
+    addCandidate(word.endsWith('ly') ? 'adv' : 'adj', 0.65, '程度副词后');
+  }
+  // -ing + 后面跟名词 → 更可能是形容词（现在分词作定语）
+  if (word.endsWith('ing') && nextWord) {
+    let strongNoun = false;
+    if (vocabularyMap.has(nextWord)) {
+      const nextData = vocabularyMap.get(nextWord);
+      if (nextData && nextData.byType) {
+        const nextTypes = Object.keys(nextData.byType).map(normalizeType);
+        strongNoun = nextTypes.length === 1 && nextTypes[0] === 'n';
+      }
+    }
+    if (strongNoun) {
+      addCandidate('adj', 0.85, '-ing + 名词');
+    } else if (!EN_FUNCTION_WORDS.has(nextWord)) {
+      addCandidate('adj', 0.7, '-ing + 非功能词');
+    }
+  }
+  // 常见后缀启发式
+  if (/(tion|sion|ment|ness|ity|ism)$/.test(word)) {
+    addCandidate('n', 0.55, '名词后缀');
+  }
+  if (/(ous|able|ible|ive|al|ful|less|ic)$/.test(word) && word.length > 3) {
+    addCandidate('adj', 0.55, '形容词后缀');
+  }
+  if (/(ize|ise|ify)$/.test(word) && word.length > 3) {
+    addCandidate('v', 0.55, '动词后缀');
+  }
+  // 规则7：句首/标点后，根据后面出现的模式做一个弱推断
+  if (/^[\s]*$/.test(prevText) || /[,.!?]\s*$/.test(prevText)) {
+    // 7a：后面紧跟介词（on/in/at/to...）→ 可能是祈使句里的动词（如 "Click on ..."）
+    if (/^\s*(on|in|at|to|for|with|about|from|into|out|up|down|off|over|through)\b/i.test(nextText)) {
+      addCandidate('v', 0.65, '句首 + 介词短语');
+    }
+    // 7b：后面紧跟 be/have/情态 → 当前词可能是名词（作主语）
+    if (/^\s*(is|are|was|were|has|have|had|will|would|can|could|shall|should|may|might|must)\b/i.test(nextText)) {
+      addCandidate('n', 0.6, '句首 + 助动/情态');
+    }
+    // 7c：后面紧跟限定词/代词 → 当前词可能是动词（祈使句 + 宾语）
+    if (/^\s*(the|a|an|this|that|these|those|it|them|him|her|me|us|you|my|your|his|her|its|our|their)\b/i.test(nextText)) {
+      addCandidate('v', 0.6, '句首 + 宾语');
+    }
+  }
+  // 基于词表：利用前一个词的已知词性做弱约束
+  const prevWord = extractPrevWord(text, wordStart);
+  if (prevWord) {
+    const prevWordLower = prevWord.toLowerCase();
+    if (vocabularyMap.has(prevWordLower)) {
+      const prevData = vocabularyMap.get(prevWordLower);
+      if (prevData && prevData.byType) {
+        const types = Object.keys(prevData.byType);
+        if (types.length === 1) {
+          // 前一个词只有一种词性时，做简单搭配推断
+          const prevType = normalizeType(types[0]);
+          if (prevType === 'v' || prevType === 'vt' || prevType === 'vi') {
+            addCandidate('n', 0.55, `前一个词 "${prevWord}" 是动词`, 'vocab');
+          }
+          if (prevType === 'adj') {
+            addCandidate('n', 0.55, `前一个词 "${prevWord}" 是形容词`, 'vocab');
+          }
+          if (prevType === 'n') {
+            addCandidate('v', 0.55, `前一个词 "${prevWord}" 是名词`, 'vocab');
+          }
+        }
+      }
+    }
+  }
+
+
+  if (candidates.length == 0) {
+    return null;
+  }
+
+  let best = candidates[0];
+  for (let i = 1; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    if (candidate.score > best.score) {
+      best = candidate;
+    }
+  }
+
+  return { pos: best.pos, method: best.method, rule: best.rule };
+}
+
+function extractPrevWord(text, position) {
+  // 向前找空格或标点，提取前一个单词
+  let end = position;
+  // 跳过空格
+  while (end > 0 && /\s/.test(text[end - 1])) {
+    end--;
+  }
+  if (end === 0) return null;
+
+  let start = end;
+  // 向前找单词边界
+  while (start > 0 && /[a-zA-Z]/.test(text[start - 1])) {
+    start--;
+  }
+
+  if (start === end) return null;
+  return text.substring(start, end);
+}
+
+// jieba 词性到词库词性的映射
+const JIEBA_TO_VOCAB_POS = {
+  'n': ['n', 'n.'],
+  'v': ['v', 'v.', 'vt', 'vt.', 'vi', 'vi.'],
+  'adj': ['adj', 'adj.', 'a', 'a.'],
+  'adv': ['adv', 'adv.', 'd'],
+};
+
+// 查找匹配的词性
+function findMatchingType(byType, posTag) {
+  if (!posTag || !byType) return null;
+
+  const normalizedTag = posTag.toLowerCase().replace('.', '');
+  const candidates = JIEBA_TO_VOCAB_POS[normalizedTag] || [normalizedTag];
+
+  for (const candidate of candidates) {
+    // 直接匹配
+    if (byType[candidate]) return candidate;
+    // 尝试带点的版本
+    if (byType[candidate + '.']) return candidate + '.';
+    // 尝试不带点的版本
+    const withoutDot = candidate.replace('.', '');
+    if (byType[withoutDot]) return withoutDot;
+  }
+
+  return null;
+}
+
+// ========== 词性推断相关函数结束 ==========
+
 
 
 let globalTooltip = null;
@@ -208,11 +574,26 @@ let isHoveringHighlight = false;
 
 let isHoveringTooltip = false;
 
+let isTooltipPinned = false;
+
+let isTooltipDragging = false;
+
+let tooltipDragOffset = null;
+
+let tooltipManualPositioned = false;
+
 let pointerTrackerAttached = false;
 
 let lastPointerPosition = null;
 
 const TOOLTIP_HIDE_DELAY_MS = 100;
+const TOOLTIP_SIZE_STORAGE_KEY = 'tooltipSize';
+const TOOLTIP_SIZE_DEFAULT = { width: 360, height: 280 };
+const TOOLTIP_SIZE_MIN = { width: 260, height: 200 };
+const TOOLTIP_SIZE_MAX = { width: 600, height: 480 };
+let tooltipSize = { ...TOOLTIP_SIZE_DEFAULT };
+let tooltipResizeState = null;
+let tooltipSizeSaveTimer = null;
 
 
 
@@ -232,7 +613,27 @@ const PROCESS_IDLE_TIMEOUT_MS = 200;
 
 let initialProcessingLogged = false;
 
+let annotatedWordCount = 0; // 统计标注的词汇数量
+
+let pendingAsyncCount = 0; // 追踪异步处理数量
+
+let finalLogTimer = null; // 延迟输出最终日志
+
 let spaRescanTimers = [];
+
+let scrollRescanTimer = null;
+const SCROLL_RESCAN_DELAY_MS = 300;
+
+function isInternalAnnotationNode(node) {
+  if (!node || node.nodeType !== Node.ELEMENT_NODE) {
+    return false;
+  }
+  const el = node;
+  if (el.classList && (el.classList.contains('vocab-highlight') || el.classList.contains('vocab-tooltip') || el.classList.contains('vocab-tooltip-resize-handle'))) {
+    return true;
+  }
+  return !!el.closest('.vocab-tooltip');
+}
 
 
 
@@ -252,6 +653,23 @@ function resetProcessingQueue() {
 function resetBlockQuotaState() {
   blockQuotaRemaining = new WeakMap();
   blockGroupCache = new WeakMap();
+}
+
+// 重置指定元素及其内部块级容器的配额
+function resetBlockQuotaForElement(element) {
+  if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+    return;
+  }
+  // 重置该元素本身的配额
+  blockQuotaRemaining.delete(element);
+  blockGroupCache.delete(element);
+
+  // 重置所有子元素的配额缓存
+  const children = element.querySelectorAll('*');
+  children.forEach(child => {
+    blockQuotaRemaining.delete(child);
+    blockGroupCache.delete(child);
+  });
 }
 
 
@@ -359,8 +777,8 @@ function runProcessingQueue(deadline) {
   }
 
   if (pendingNodes.length === 0 && !initialProcessingLogged) {
-    initialProcessingLogged = true;
-    logPageStatus('修改完成 模式:', getEffectiveMode());
+    // 延迟输出日志，等待异步处理完成
+    scheduleFinalLog();
   }
 
 
@@ -486,6 +904,38 @@ function debugLog(...args) {
 
 }
 
+// 诊断日志（根据 debugMode 设置决定是否输出）
+let debugModeEnabled = false;
+
+function diagLog(...args) {
+  if (debugModeEnabled) {
+    console.log('[jieci-diag]', ...args);
+  }
+}
+
+function normalizeDiagText(text) {
+  if (!text) {
+    return '';
+  }
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function formatDiagText(text, maxLen = 160) {
+  const cleaned = normalizeDiagText(text);
+  if (cleaned.length <= maxLen) {
+    return cleaned;
+  }
+  return `${cleaned.slice(0, maxLen)}...`;
+}
+
+function formatDiagList(items, maxLen = 200) {
+  const joined = items.join(' | ');
+  if (joined.length <= maxLen) {
+    return joined;
+  }
+  return `${joined.slice(0, maxLen)}...`;
+}
+
 // Log helpers
 function formatLogTime() {
   return new Date().toLocaleString();
@@ -525,9 +975,20 @@ function forceReprocessContainer(container) {
   // Allow reprocessing of updated SPA content.
   processedNodes.delete(container);
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_ALL);
+  let nodeCount = 0;
+  let textNodeCount = 0;
+  let sampleText = '';
   while (walker.nextNode()) {
     processedNodes.delete(walker.currentNode);
+    nodeCount++;
+    if (walker.currentNode.nodeType === Node.TEXT_NODE && walker.currentNode.textContent.trim().length > 5) {
+      textNodeCount++;
+      if (!sampleText && walker.currentNode.textContent.trim().length > 10) {
+        sampleText = walker.currentNode.textContent.trim().substring(0, 30);
+      }
+    }
   }
+  diagLog('forceReprocess 遍历节点:', nodeCount, '文本节点:', textNodeCount, '示例:', sampleText);
   enqueueNode(container);
 }
 
@@ -537,19 +998,124 @@ function scheduleSpaRescan(root) {
   spaRescanTimers.push(setTimeout(() => forceReprocessContainer(root), 1600));
 }
 
+// 滚动时检测并处理可见区域的新内容
+function handleScrollRescan() {
+  if (scrollRescanTimer) {
+    clearTimeout(scrollRescanTimer);
+  }
+  scrollRescanTimer = setTimeout(() => {
+    scrollRescanTimer = null;
+    if (displayMode === 'off') {
+      return;
+    }
+    // 获取视口内的主要内容容器（包含知乎、微博等常见网站的选择器）
+    const selectors = [
+      'article', 'main', '[role="main"]',
+      // 知乎
+      '.RichContent', '.RichText', '.ContentItem', '.List-item', '.AnswerItem', '.Post-content',
+      // 通用
+      '.post-stream', '.feed', '.timeline', '.content'
+    ].join(',');
+
+    const mainContainers = document.querySelectorAll(selectors);
+    let processedCount = 0;
+
+    // 滚动时清除配额缓存，让新内容有新配额
+    resetBlockQuotaState();
+
+    mainContainers.forEach(container => {
+      const rect = container.getBoundingClientRect();
+      // 检查容器是否在视口附近
+      if (rect.bottom >= -500 && rect.top <= window.innerHeight + 500) {
+        // 遍历容器内未处理的文本节点
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          if (!processedNodes.has(node) && node.textContent.trim().length > 0) {
+            enqueueNode(node);
+            processedCount++;
+          }
+        }
+      }
+    });
+
+    if (processedCount > 0) {
+      diagLog('滚动检测到未处理节点:', processedCount);
+    }
+  }, SCROLL_RESCAN_DELAY_MS);
+}
+
+function clearScrollRescanTimer() {
+  if (scrollRescanTimer) {
+    clearTimeout(scrollRescanTimer);
+    scrollRescanTimer = null;
+  }
+}
+
+// 延迟输出最终日志，等待异步分词完成
+function scheduleFinalLog() {
+  if (finalLogTimer) {
+    clearTimeout(finalLogTimer);
+  }
+  finalLogTimer = setTimeout(() => {
+    finalLogTimer = null;
+    if (initialProcessingLogged) {
+      return;
+    }
+    // 如果还有异步处理在进行，继续等待
+    if (pendingAsyncCount > 0) {
+      scheduleFinalLog();
+      return;
+    }
+    initialProcessingLogged = true;
+    logPageStatus('修改完成 模式:', `${getEffectiveMode()} 标注词汇: ${annotatedWordCount}`);
+  }, 500);
+}
+
+function clearFinalLogTimer() {
+  if (finalLogTimer) {
+    clearTimeout(finalLogTimer);
+    finalLogTimer = null;
+  }
+}
+
 let lastSeenUrl = location.href;
 
 function isContentScriptActive() {
   return typeof document !== 'undefined' && document.body;
 }
 
-async function handleSpaNavigation(reason) {
+function getDiscourseTopicBase(urlString) {
+  if (!urlString) {
+    return null;
+  }
+  try {
+    const url = new URL(urlString);
+    const match = url.pathname.match(/^\/t\/[^/]+\/\d+/);
+    return match ? match[0] : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function isSameDiscourseTopic(prevUrl, nextUrl) {
+  const prevBase = getDiscourseTopicBase(prevUrl);
+  const nextBase = getDiscourseTopicBase(nextUrl);
+  return !!prevBase && prevBase === nextBase;
+}
+
+async function handleSpaNavigation(reason, prevUrl, nextUrl) {
   if (!isContentScriptActive()) {
     return;
   }
   languageDetectDone = false;
   resetLanguageDetectRetry();
   logPageStatus('SPA nav ' + reason + ' mode:', getEffectiveMode());
+
+  if (document.querySelector('.post-stream') && isSameDiscourseTopic(prevUrl, nextUrl || location.href)) {
+    debugLog('SPA nav in same Discourse topic; skip full reprocess.');
+    return;
+  }
 
   if (displayMode !== 'off') {
     await startProcessing();
@@ -569,8 +1135,9 @@ function setupSpaNavigationListener() {
     if (current === lastSeenUrl) {
       return;
     }
+    const prev = lastSeenUrl;
     lastSeenUrl = current;
-    handleSpaNavigation(reason);
+    handleSpaNavigation(reason, prev, current);
   };
 
   const patchHistory = (method) => {
@@ -607,7 +1174,7 @@ function setupSpaNavigationListener() {
   if (annotationMode === 'auto') {
     detectPageLanguage();
   }
-  logPageStatus('当前语言判断结果:', getLanguageResultLabel());
+  logPageStatus('Language detection result:', getLanguageResultLabel());
 
   debugLog('初始化完成，显示模式:', displayMode, '词库大小:', vocabularyMap.size);
 
@@ -785,6 +1352,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     }
 
+  } else if (message.action === 'updateDebugMode') {
+
+    debugModeEnabled = message.enabled === true;
+
+    console.log('[jieci] 调试模式:', debugModeEnabled ? '开启' : '关闭');
+
+  } else if (message.action === 'resetTooltipSize') {
+
+    tooltipSize = { ...TOOLTIP_SIZE_DEFAULT };
+
+    if (globalTooltip) {
+
+      applyTooltipSize(globalTooltip, tooltipSize);
+
+    }
+
   } else if (message.action === 'getLanguageStats') {
 
     const sampleText = getSampleTextFromPage();
@@ -813,13 +1396,20 @@ async function loadSettings() {
 
   try {
 
-    const result = await chrome.storage.local.get(['displayMode', 'vocabularies', 'maxMatchesPerNode', 'minTextLength', 'annotationMode', 'highlightColorMode', 'highlightColor', 'smartSkipCodeLinks', 'dedupeMode', 'dedupeRepeatCount', 'dedupeCooldownSeconds', 'dedupeGlobalState']);
+    const result = await chrome.storage.local.get(['displayMode', 'vocabularies', 'maxMatchesPerNode', 'minTextLength', 'annotationMode', 'highlightColorMode', 'highlightColor', 'smartSkipCodeLinks', 'dedupeMode', 'dedupeRepeatCount', 'dedupeCooldownSeconds', 'dedupeGlobalState', 'debugMode', TOOLTIP_SIZE_STORAGE_KEY]);
 
     displayMode = result.displayMode || 'off';
 
     maxMatchesPerNode = normalizeMaxMatches(result.maxMatchesPerNode);
 
-    minTextLength = result.minTextLength || 10;
+    minTextLength = result.minTextLength || 0;
+
+    debugModeEnabled = result.debugMode === true;
+    if (result[TOOLTIP_SIZE_STORAGE_KEY]) {
+      tooltipSize = clampTooltipSize(result[TOOLTIP_SIZE_STORAGE_KEY]);
+    } else {
+      tooltipSize = { ...TOOLTIP_SIZE_DEFAULT };
+    }
 
     annotationMode = result.annotationMode || 'auto';
 
@@ -930,111 +1520,72 @@ async function loadVocabularies() {
 
 
     vocabList.forEach(vocab => {
+      const sourceName = vocab.name || '未知词库';
 
       vocab.data.forEach(item => {
-
         const word = item.word;
 
-
-
         if (effectiveMode === 'cn-to-en') {
-
-          // 中文 -> 英文模式：构建映射 中文翻译 -> { word, translations, phrases }
-
+          // 中文 -> 英文模式：构建映射 中文翻译 -> 合并后的英文词条
           if (item.translations && Array.isArray(item.translations)) {
-
             item.translations.forEach(trans => {
-
               const chinese = trans.translation;
-
               if (chinese) {
-
-                // 可能有多个中文翻译，用逗号或顿号分隔
-
                 const chineseWords = chinese.split(/[,、，]/);
-
                 chineseWords.forEach(cw => {
-
                   const cleanChinese = cw.trim();
-
                   if (cleanChinese) {
-
-                    // 添加到词汇集合（用于兼容性）
-
                     vocabularySet.add(cleanChinese);
 
-
-
                     if (!vocabularyMap.has(cleanChinese)) {
-
-                      vocabularyMap.set(cleanChinese, []);
-
+                      vocabularyMap.set(cleanChinese, createEmptyMergedData(word));
                     }
 
-                    vocabularyMap.get(cleanChinese).push({
+                    const mergedData = vocabularyMap.get(cleanChinese);
 
-                      word: word,
+                    // 合并翻译（按词性分组）
+                    mergeTranslations(mergedData, item.translations, sourceName);
 
-                      type: trans.type || '',
+                    // 合并短语
+                    mergePhrases(mergedData.phrases, item.phrases, sourceName);
 
-                      allTranslations: item.translations,
-
-                      phrases: item.phrases || [],
-
-                      wordLength: word.length // 用于计算优先级
-
-                    });
-
+                    // 记录来源
+                    if (!mergedData.sources.includes(sourceName)) {
+                      mergedData.sources.push(sourceName);
+                    }
                   }
-
                 });
-
               }
-
             });
-
           }
 
         } else if (effectiveMode === 'en-to-cn') {
-
-          // 英文 -> 中文模式：构建映射 英文单词 -> { translations, phrases }
-
+          // 英文 -> 中文模式：构建映射 英文单词 -> 合并后的翻译
           if (word) {
-
             const cleanWord = word.trim().toLowerCase();
-
             if (cleanWord) {
-
               vocabularySet.add(cleanWord);
 
-
-
               if (!vocabularyMap.has(cleanWord)) {
-
-                vocabularyMap.set(cleanWord, []);
-
+                vocabularyMap.set(cleanWord, createEmptyMergedData(word));
               }
 
-              vocabularyMap.get(cleanWord).push({
+              const mergedData = vocabularyMap.get(cleanWord);
 
-                word: word,
+              // 合并翻译（按词性分组）
+              mergeTranslations(mergedData, item.translations, sourceName);
 
-                allTranslations: item.translations || [],
+              // 合并短语
+              mergePhrases(mergedData.phrases, item.phrases, sourceName);
 
-                phrases: item.phrases || [],
-
-                wordLength: word.length
-
-              });
-
+              // 记录来源
+              if (!mergedData.sources.includes(sourceName)) {
+                mergedData.sources.push(sourceName);
+              }
             }
-
           }
-
         }
-
       });
-
     });
 
 
@@ -1282,6 +1833,12 @@ async function startProcessing() {
 
   initialProcessingLogged = false;
 
+  annotatedWordCount = 0; // 重置词汇统计
+
+  pendingAsyncCount = 0; // 重置异步计数
+
+  clearFinalLogTimer();
+
   processedNodes = new WeakSet();
 
   resetDedupeState();
@@ -1317,6 +1874,7 @@ async function startProcessing() {
     document.addEventListener('DOMContentLoaded', () => {
 
       debugLog('DOM 加载完成，开始处理');
+      diagLog('初始处理 body, 词库大小:', vocabularyMap.size, '模式:', getEffectiveMode(), 'minTextLength:', minTextLength);
 
       enqueueNode(document.body);
 
@@ -1324,6 +1882,7 @@ async function startProcessing() {
 
   } else {
 
+    diagLog('初始处理 body, 词库大小:', vocabularyMap.size, '模式:', getEffectiveMode(), 'minTextLength:', minTextLength);
     enqueueNode(document.body);
 
   }
@@ -1335,6 +1894,8 @@ async function startProcessing() {
   if (!window.vocabularyObserver) {
 
     window.vocabularyObserver = new MutationObserver((mutations) => {
+      let addedCount = 0;
+      let hasNewElements = false;
 
       mutations.forEach((mutation) => {
 
@@ -1345,9 +1906,39 @@ async function startProcessing() {
         }
 
         mutation.addedNodes.forEach((node) => {
+          addedCount++;
 
           if (node.nodeType === Node.ELEMENT_NODE) {
+            if (isInternalAnnotationNode(node)) {
+              return;
+            }
+            hasNewElements = true;
+            // 检查是否是内容容器
+            const className = typeof node.className === 'string'
+              ? node.className
+              : (node.className && typeof node.className.baseVal === 'string' ? node.className.baseVal : '');
+            const isContentContainer = className.includes('List-item') ||
+                                       className.includes('AnswerItem') ||
+                                       className.includes('ContentItem') ||
+                                       className.includes('RichContent');
 
+            if (isContentContainer) {
+              // 对于内容容器，延迟处理以确保内容渲染完成
+              setTimeout(() => {
+                resetBlockQuotaForElement(node);
+                forceReprocessContainer(node);
+                diagLog('延迟处理内容元素:', node.tagName, className.substring(0, 30));
+              }, 100);
+            } else {
+              // 对于其他元素，立即处理
+              resetBlockQuotaForElement(node);
+              forceReprocessContainer(node);
+            }
+
+          } else if (node.nodeType === Node.TEXT_NODE) {
+
+            // 也处理新增的文本节点（如通过 innerHTML 或 textContent 更新的内容）
+            processedNodes.delete(node);
             enqueueNode(node);
 
           }
@@ -1357,6 +1948,15 @@ async function startProcessing() {
           scheduleLanguageDetectRetry();
         }
       });
+
+      // 有新元素时重置所有配额，确保新内容有配额
+      if (hasNewElements) {
+        resetBlockQuotaState();
+      }
+
+      if (addedCount > 0) {
+        diagLog('MutationObserver 检测到新增节点:', addedCount, '待处理队列:', pendingNodes.length);
+      }
 
     });
 
@@ -1376,6 +1976,13 @@ async function startProcessing() {
 
   }
 
+  // 添加滚动监听，处理懒加载内容
+  if (!window.__jieciScrollListenerAttached) {
+    window.addEventListener('scroll', handleScrollRescan, { passive: true });
+    window.__jieciScrollListenerAttached = true;
+    debugLog('滚动监听已启动');
+  }
+
 }
 
 
@@ -1387,6 +1994,13 @@ function stopProcessing() {
   debugLog('停止处理页面');
 
   resetProcessingQueue();
+
+  clearScrollRescanTimer();
+
+  if (window.__jieciScrollListenerAttached) {
+    window.removeEventListener('scroll', handleScrollRescan);
+    window.__jieciScrollListenerAttached = false;
+  }
 
   if (window.vocabularyObserver) {
 
@@ -1862,15 +2476,18 @@ function getNearestBlockContainer(textNode) {
     return null;
   }
 
-  for (let i = 0; i < 6 && container; i++) {
+  for (let i = 0; i < 20 && container; i++) {
     const style = window.getComputedStyle(container);
     if (isBlockDisplay(style.display)) {
+      return container;
+    }
+    if (container === document.body) {
       return container;
     }
     container = container.parentElement;
   }
 
-  return null;
+  return document.body || null;
 }
 
 function getSiblingBlockElement(start, direction) {
@@ -2796,12 +3413,32 @@ function meetsMinTextLength(textNode) {
 
 // 处理文本节点
 
+let diagSkipReasons = { quota: 0, minLength: 0, overflow: 0, noMatch: 0 };
+let lastDiagReport = 0;
+
+function reportDiagSkipReasons() {
+  const now = Date.now();
+  if (now - lastDiagReport < 2000) return; // 每2秒最多报告一次
+  lastDiagReport = now;
+  const { quota, minLength, overflow, noMatch } = diagSkipReasons;
+  if (quota + minLength + overflow + noMatch > 0) {
+    diagLog('跳过原因统计 - 配额耗尽:', quota, '字数不足:', minLength, '(minTextLength=' + minTextLength + ')', '溢出:', overflow, '无匹配:', noMatch);
+  }
+}
+
+function resetDiagSkipReasons() {
+  diagSkipReasons = { quota: 0, minLength: 0, overflow: 0, noMatch: 0 };
+}
+
 function processTextNode(textNode) {
 
-  if (!textNode.textContent || textNode.textContent.trim().length === 0) {
+  const rawText = textNode.textContent || '';
+  const diagPreview = formatDiagText(rawText);
+  diagLog('Text node:', diagPreview);
 
+  if (!rawText || rawText.trim().length === 0) {
+    diagLog('Text node status:', 'dropped', 'reason:', 'empty');
     return;
-
   }
 
 
@@ -2810,13 +3447,15 @@ function processTextNode(textNode) {
 
   if (!textNode.parentNode) {
 
+    diagLog('Text node status:', 'dropped', 'reason:', 'no-parent');
     return;
 
   }
 
   const blockGroupKey = getBlockGroupKey(textNode);
   if (getBlockQuotaRemaining(blockGroupKey) <= 0) {
-    debugLog('Skipped annotation: block quota exhausted.');
+    diagSkipReasons.quota++;
+    diagLog('Text node status:', 'dropped', 'reason:', 'quota');
     return;
   }
 
@@ -2827,6 +3466,12 @@ function processTextNode(textNode) {
   // Minimum length check.
 
   if (minTextLength > 0 && !insideCooked && !meetsMinTextLength(textNode)) {
+    diagSkipReasons.minLength++;
+    // 添加详细诊断
+    const container = getNearestBlockContainer(textNode);
+    const textLen = container ? container.textContent.trim().length : 0;
+    diagLog('Text node status:', 'dropped', 'reason:', `min-length (minTextLength=${minTextLength}, containerLength=${textLen})`);
+    reportDiagSkipReasons();
 
     debugLog('Skipped annotation: container text below minimum length.');
 
@@ -2836,13 +3481,17 @@ function processTextNode(textNode) {
 
 
 
-  if (!insideCooked && wouldCauseOverflow(textNode)) {
-
-    debugLog('Skipped annotation: would cause overflow.');
-
-    return;
-
-  }
+  // TEMP: disable overflow-based skipping to test annotation coverage.
+  // if (!insideCooked && wouldCauseOverflow(textNode)) {
+  //   diagSkipReasons.overflow++;
+  //   diagLog('Text node status:', 'dropped', 'reason:', 'overflow');
+  //   reportDiagSkipReasons();
+  //
+  //   debugLog('Skipped annotation: would cause overflow.');
+  //
+  //   return;
+  //
+  // }
 
 
 
@@ -2854,39 +3503,59 @@ function processTextNode(textNode) {
 
   if (effectiveMode === 'cn-to-en') {
 
-    requestJiebaTokens(text).then((tokens) => {
+    // 使用词性标注获取带词性的分词结果
+    pendingAsyncCount++; // 追踪异步处理
+    requestJiebaTags(text).then((tags) => {
 
       if (!textNode.parentNode || textNode.textContent !== text) {
-
+        pendingAsyncCount--;
+        diagLog('Text node status:', 'dropped', 'reason:', 'stale-node');
         return;
 
       }
       const remainingQuota = getBlockQuotaRemaining(blockGroupKey);
       if (remainingQuota <= 0) {
+        pendingAsyncCount--;
+        diagLog('Text node status:', 'dropped', 'reason:', 'quota');
         return;
       }
 
       const matches = [];
 
-      if (tokens && tokens.length > 0) {
+      if (tags && tags.length > 0) {
+        const tagItems = tags.map(tag => `${tag.word}/${normalizeJiebaTag(tag.tag)}`);
+        diagLog('Segmentation (jieba tags):', formatDiagList(tagItems));
 
-        tokens.forEach((token) => {
+        // 计算每个词的位置（jieba tag 返回的没有位置信息，需要自己计算）
+        let currentPos = 0;
+        tags.forEach((tag) => {
+          const word = tag.word;
+          const wordStart = text.indexOf(word, currentPos);
+          if (wordStart === -1) {
+            currentPos += word.length;
+            return;
+          }
+          const wordEnd = wordStart + word.length;
+          currentPos = wordEnd;
 
-          if (vocabularyMap.has(token.word)) {
+          if (vocabularyMap.has(word)) {
 
-            const data = vocabularyMap.get(token.word);
+            const data = vocabularyMap.get(word);
+            const posTag = normalizeJiebaTag(tag.tag);
 
             matches.push({
 
-              start: token.start,
+              start: wordStart,
 
-              end: token.end,
+              end: wordEnd,
 
-              matchText: token.word,
+              matchText: word,
 
               data: data,
 
-              priority: calculatePriority(token.word, data, token.start, text.length)
+              posTag: posTag,  // 保存词性信息
+
+              priority: calculatePriority(word, data, wordStart, text.length)
 
             });
 
@@ -2896,44 +3565,68 @@ function processTextNode(textNode) {
 
       } else {
 
-        // Fallback: use local segmentation when jieba tokens are unavailable.
-
-        const segments = segmentChinese(text);
-
-        segments.forEach((segment) => {
-
-          if (!segment.isVocab) {
-
+        // Fallback: 使用 tokenize 或本地分词
+        requestJiebaTokens(text).then((tokens) => {
+          if (!textNode.parentNode || textNode.textContent !== text) {
+            pendingAsyncCount--;
+            diagLog('Text node status:', 'dropped', 'reason:', 'stale-node');
             return;
-
           }
 
-          if (vocabularyMap.has(segment.text)) {
-
-            const data = vocabularyMap.get(segment.text);
-
-            matches.push({
-
-              start: segment.start,
-
-              end: segment.end,
-
-              matchText: segment.text,
-
-              data: data,
-
-              priority: calculatePriority(segment.text, data, segment.start, text.length)
-
+          if (tokens && tokens.length > 0) {
+            const tokenItems = tokens.map(token => `${token.word}@${token.start}`);
+            diagLog('Segmentation (jieba tokens):', formatDiagList(tokenItems));
+            tokens.forEach((token) => {
+              if (vocabularyMap.has(token.word)) {
+                const data = vocabularyMap.get(token.word);
+                matches.push({
+                  start: token.start,
+                  end: token.end,
+                  matchText: token.word,
+                  data: data,
+                  posTag: null,
+                  priority: calculatePriority(token.word, data, token.start, text.length)
+                });
+              }
             });
-
+          } else {
+            // Fallback: use local segmentation when jieba tokens are unavailable.
+            const segments = segmentChinese(text);
+            const segmentItems = segments.map(segment => `${segment.text}${segment.isVocab ? '*' : ''}`);
+            diagLog('Segmentation (local):', formatDiagList(segmentItems));
+            segments.forEach((segment) => {
+              if (!segment.isVocab) {
+                return;
+              }
+              if (vocabularyMap.has(segment.text)) {
+                const data = vocabularyMap.get(segment.text);
+                matches.push({
+                  start: segment.start,
+                  end: segment.end,
+                  matchText: segment.text,
+                  data: data,
+                  posTag: null,
+                  priority: calculatePriority(segment.text, data, segment.start, text.length)
+                });
+              }
+            });
           }
 
+          const applyResult = applyMatchesToTextNode(textNode, text, matches, effectiveMode, remainingQuota);
+          consumeBlockQuota(blockGroupKey, applyResult.appliedCount);
+          diagLog('Text node status:', applyResult.appliedCount > 0 ? 'kept' : 'dropped', 'reason:', applyResult.reason, 'applied:', applyResult.appliedCount);
+          const matchItems = matches.map(match => `${match.matchText}@${match.start}`);
+          diagLog('Matches (cn-to-en):', matches.length, 'items:', formatDiagList(matchItems));
+          pendingAsyncCount--;
         });
-
+        return;
       }
-
-      const appliedCount = applyMatchesToTextNode(textNode, text, matches, effectiveMode, remainingQuota);
-      consumeBlockQuota(blockGroupKey, appliedCount);
+      const applyResult = applyMatchesToTextNode(textNode, text, matches, effectiveMode, remainingQuota);
+      consumeBlockQuota(blockGroupKey, applyResult.appliedCount);
+      diagLog('Text node status:', applyResult.appliedCount > 0 ? 'kept' : 'dropped', 'reason:', applyResult.reason, 'applied:', applyResult.appliedCount);
+      const matchItems = matches.map(match => `${match.matchText}@${match.start}`);
+      diagLog('Matches (cn-to-en):', matches.length, 'items:', formatDiagList(matchItems));
+      pendingAsyncCount--;
 
     });
 
@@ -2949,17 +3642,21 @@ function processTextNode(textNode) {
 
       debugLog('Intl.Segmenter unavailable; skipping segmentation.');
 
+      diagLog('Text node status:', 'dropped', 'reason:', 'segmenter-unavailable');
       return;
 
     }
     const remainingQuota = getBlockQuotaRemaining(blockGroupKey);
     if (remainingQuota <= 0) {
+      diagLog('Text node status:', 'dropped', 'reason:', 'quota');
       return;
     }
 
     const matches = [];
 
     const segments = getWordSegments(text, EN_SEGMENTER);
+    const segmentItems = segments.map(segment => `${segment.text}@${segment.start}`);
+    diagLog('Segmentation (en):', formatDiagList(segmentItems));
 
     segments.forEach(segment => {
 
@@ -2975,6 +3672,9 @@ function processTextNode(textNode) {
 
         const data = vocabularyMap.get(englishWord);
 
+        // 推断英文单词的词性
+        const inferredPOS = inferEnglishPOS(text, segment.start, segment.end);
+
         matches.push({
 
           start: segment.start,
@@ -2985,6 +3685,8 @@ function processTextNode(textNode) {
 
           data: data,
 
+          posTag: inferredPOS,  // 保存推断的词性
+
           priority: calculatePriority(segment.text, data, segment.start, text.length)
 
         });
@@ -2993,8 +3695,11 @@ function processTextNode(textNode) {
 
     });
 
-    const appliedCount = applyMatchesToTextNode(textNode, text, matches, effectiveMode, remainingQuota);
-    consumeBlockQuota(blockGroupKey, appliedCount);
+    const applyResult = applyMatchesToTextNode(textNode, text, matches, effectiveMode, remainingQuota);
+    consumeBlockQuota(blockGroupKey, applyResult.appliedCount);
+    diagLog('Text node status:', applyResult.appliedCount > 0 ? 'kept' : 'dropped', 'reason:', applyResult.reason, 'applied:', applyResult.appliedCount);
+    const matchItems = matches.map(match => `${match.matchText}@${match.start}`);
+    diagLog('Matches (en-to-cn):', matches.length, 'items:', formatDiagList(matchItems));
 
   }
 
@@ -3006,7 +3711,7 @@ function applyMatchesToTextNode(textNode, text, matches, effectiveMode, maxCount
 
   if (!matches || matches.length === 0) {
 
-    return 0;
+    return { appliedCount: 0, reason: 'no-matches', selectedCount: 0, dedupedCount: 0 };
 
   }
 
@@ -3016,7 +3721,7 @@ function applyMatchesToTextNode(textNode, text, matches, effectiveMode, maxCount
 
   if (selectedMatches.length === 0) {
 
-    return 0;
+    return { appliedCount: 0, reason: 'selection-empty', selectedCount: 0, dedupedCount: 0 };
 
   }
 
@@ -3038,7 +3743,7 @@ function applyMatchesToTextNode(textNode, text, matches, effectiveMode, maxCount
 
   if (dedupedMatches.length === 0) {
 
-    return 0;
+    return { appliedCount: 0, reason: 'dedupe-filtered', selectedCount: selectedMatches.length, dedupedCount: 0 };
 
   }
 
@@ -3066,7 +3771,7 @@ function applyMatchesToTextNode(textNode, text, matches, effectiveMode, maxCount
 
     }
 
-    const span = createHighlightSpan(match.matchText, match.data);
+    const span = createHighlightSpan(match.matchText, match.data, match.posTag);
 
     fragment.appendChild(span);
 
@@ -3092,6 +3797,9 @@ function applyMatchesToTextNode(textNode, text, matches, effectiveMode, maxCount
 
       debugLog('Replaced text node with annotations.');
 
+      // 增加标注词汇统计
+      annotatedWordCount += dedupedMatches.length;
+
     }
 
   } catch (error) {
@@ -3099,48 +3807,29 @@ function applyMatchesToTextNode(textNode, text, matches, effectiveMode, maxCount
     console.error('Failed to replace text node:', error);
 
   }
-  return dedupedMatches.length;
+  return { appliedCount: dedupedMatches.length, reason: 'applied', selectedCount: selectedMatches.length, dedupedCount: dedupedMatches.length };
 
 }
 
 
 
 // 计算优先级分数（多维度）
-
-function calculatePriority(matchText, dataList, position, textLength) {
-
-  const firstData = dataList[0];
-
-
-
+// data 现在是单个合并后的对象，不再是数组
+function calculatePriority(matchText, data, position, textLength) {
   // 1. 单词长度分数（长词优先）- 权重 40%
-
-  const lengthScore = Math.min(firstData.wordLength / 15, 1) * 40;
-
-
+  const lengthScore = Math.min(data.wordLength / 15, 1) * 40;
 
   // 2. 位置分散度分数 - 权重 30%
-
   const positionRatio = position / textLength;
-
   // 中间位置的分数更高，避免全部集中在前面或后面
-
   const distributionScore = (1 - Math.abs(positionRatio - 0.5) * 2) * 30;
 
-
-
   // 3. 词汇复杂度分数 - 权重 30%
-
   // 基于单词长度和是否有短语
-
-  const hasPhrasesBonus = (firstData.phrases && firstData.phrases.length > 0) ? 10 : 0;
-
-  const complexityScore = Math.min((firstData.wordLength - 3) / 10 * 20, 20) + hasPhrasesBonus;
-
-
+  const hasPhrasesBonus = (data.phrases && data.phrases.length > 0) ? 10 : 0;
+  const complexityScore = Math.min((data.wordLength - 3) / 10 * 20, 20) + hasPhrasesBonus;
 
   return lengthScore + distributionScore + complexityScore;
-
 }
 
 
@@ -3256,61 +3945,36 @@ function selectMatchesWithDistribution(matches, textLength, maxCount) {
 
 
 // 创建高亮标注元素
-
-function createHighlightSpan(matchText, dataList) {
-
+// data 现在是单个合并后的对象，包含 byType, phrases, sources 等
+// posTag 是推断/标注的词性：可以是字符串（jieba）或对象 { pos, method, rule }（推断）
+function createHighlightSpan(matchText, data, posTag = null) {
   const span = document.createElement('span');
-
   span.className = 'vocab-highlight';
 
-
-
-  const firstData = dataList[0];
-
-
-
   // 确定实际使用的标注模式
-
   const effectiveMode = annotationMode === 'auto' ? actualAnnotationMode : annotationMode;
 
-
+  // 提取实际的词性字符串
+  const actualPOS = posTag ? (typeof posTag === 'string' ? posTag : posTag.pos) : null;
 
   // 根据显示模式决定是否显示括号内容
-
   if (displayMode === 'underline') {
-
     // 下划线模式：只显示原文，不显示括号
-
     span.textContent = matchText;
-
   } else if (displayMode === 'annotation') {
-
     // 标注模式：显示原文和括号
-
     if (effectiveMode === 'cn-to-en') {
-
-      const englishWord = firstData.word;
-
+      const englishWord = data.word;
       span.textContent = `${matchText}(${englishWord})`;
-
     } else if (effectiveMode === 'en-to-cn') {
-
-      const chineseText = firstData.allTranslations && firstData.allTranslations.length > 0
-
-        ? firstData.allTranslations[0].translation
-
-        : '';
-
-      // 只显示第一个中文翻译（逗号或顿号之前的部分）
-
-      const firstChinese = chineseText.split(/[,，、]/)[0].trim();
-
-      span.textContent = `${matchText}(${firstChinese})`;
-
+      // 从合并后的 byType 获取翻译，优先使用推断的词性
+      const firstMeaning = getFirstMeaning(data, actualPOS);
+      span.textContent = firstMeaning ? `${matchText}(${firstMeaning})` : matchText;
     }
-
   }
 
+  // 保存 posTag 到 data 中，供 tooltip 使用
+  const dataWithPOS = { ...data, _posTag: posTag };
 
 
   const showTooltip = () => {
@@ -3331,7 +3995,32 @@ function createHighlightSpan(matchText, dataList) {
 
     isHoveringTooltip = false;
 
-    tooltip.innerHTML = `<button class="vocab-tooltip-close" type="button" aria-label="关闭">×</button><div class="vocab-tooltip-content">${createTooltipHTML(dataList, matchText)}</div>`;
+    const wasPinned = isTooltipPinned;
+    if (!wasPinned) {
+      isTooltipPinned = false;
+      tooltipManualPositioned = false;
+    } else {
+      tooltipManualPositioned = true;
+    }
+    isTooltipDragging = false;
+    tooltipDragOffset = null;
+    tooltip.replaceChildren();
+    const header = buildTooltipHeader();
+    const content = document.createElement('div');
+    content.className = 'vocab-tooltip-content';
+    const contentBody = createTooltipContent(dataWithPOS, matchText);
+    if (contentBody) {
+      content.appendChild(contentBody);
+    }
+    tooltip.appendChild(header);
+    tooltip.appendChild(content);
+    ensureTooltipResizeHandles(tooltip);
+    tooltipSize = applyTooltipSize(tooltip, tooltipSize);
+    const pinButton = tooltip.querySelector('.vocab-tooltip-pin');
+    if (pinButton) {
+      pinButton.classList.toggle('is-pinned', isTooltipPinned);
+      pinButton.setAttribute('aria-pressed', isTooltipPinned ? 'true' : 'false');
+    }
 
     tooltip.style.display = 'block';
 
@@ -3347,7 +4036,9 @@ function createHighlightSpan(matchText, dataList) {
 
     isTooltipVisible = true;
 
-    positionTooltip(span, tooltip);
+    if (!isTooltipPinned) {
+      positionTooltip(span, tooltip);
+    }
 
     tooltip.style.visibility = 'visible';
 
@@ -3493,11 +4184,168 @@ function getGlobalTooltip() {
 
       const target = event.target;
 
-      if (target && target.classList && target.classList.contains('vocab-tooltip-close')) {
+      if (!target || !target.closest) {
+
+        return;
+
+      }
+
+      const closeButton = target.closest('.vocab-tooltip-close');
+
+      if (closeButton) {
 
         hideGlobalTooltip(true);
 
+        return;
+
       }
+
+      const pinButton = target.closest('.vocab-tooltip-pin');
+
+      if (pinButton) {
+
+        isTooltipPinned = !isTooltipPinned;
+
+        pinButton.classList.toggle('is-pinned', isTooltipPinned);
+
+        pinButton.setAttribute('aria-pressed', isTooltipPinned ? 'true' : 'false');
+
+        if (isTooltipPinned) {
+
+          tooltipManualPositioned = true;
+
+        } else {
+
+          tooltipManualPositioned = false;
+
+          repositionGlobalTooltip();
+
+        }
+
+        return;
+
+      }
+
+      const phrasesToggle = target.closest('.vocab-phrases-toggle');
+
+      if (phrasesToggle) {
+
+        const phrasesBlock = phrasesToggle.parentElement?.querySelector('.vocab-phrases');
+
+        if (!phrasesBlock) {
+
+          return;
+
+        }
+
+        const isOpen = phrasesBlock.classList.toggle('is-open');
+
+        phrasesToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+
+      }
+
+    });
+
+    globalTooltip.addEventListener('mousedown', (event) => {
+
+      if (event.button !== 0) {
+
+        return;
+
+      }
+
+      const target = event.target;
+
+      if (!target || !target.closest) {
+
+        return;
+
+      }
+
+      const resizeHandle = target.closest('.vocab-tooltip-resize-handle');
+
+      if (resizeHandle) {
+
+        startTooltipResize(event, resizeHandle.dataset.dir);
+
+        return;
+
+      }
+
+      const dragHandle = target.closest('.vocab-tooltip-drag');
+
+      if (!dragHandle) {
+
+        return;
+
+      }
+
+      const rect = globalTooltip.getBoundingClientRect();
+
+      if (!isTooltipPinned) {
+        isTooltipPinned = true;
+        const pinButton = globalTooltip.querySelector('.vocab-tooltip-pin');
+        if (pinButton) {
+          pinButton.classList.add('is-pinned');
+          pinButton.setAttribute('aria-pressed', 'true');
+        }
+      }
+
+      isTooltipDragging = true;
+
+      tooltipManualPositioned = true;
+
+      tooltipDragOffset = {
+
+        x: event.clientX - rect.left,
+
+        y: event.clientY - rect.top
+
+      };
+
+      event.preventDefault();
+
+    });
+
+    document.addEventListener('mousemove', (event) => {
+
+      if (tooltipResizeState) {
+        handleTooltipResizeMove(event);
+        return;
+      }
+
+      if (!isTooltipDragging || !globalTooltip || !tooltipDragOffset) {
+
+        return;
+
+      }
+
+      const left = event.clientX - tooltipDragOffset.x;
+
+      const top = event.clientY - tooltipDragOffset.y;
+
+      globalTooltip.style.left = `${Math.round(left)}px`;
+
+      globalTooltip.style.top = `${Math.round(top)}px`;
+
+    });
+
+    document.addEventListener('mouseup', () => {
+
+      if (tooltipResizeState) {
+        finishTooltipResize();
+        return;
+      }
+
+      if (!isTooltipDragging) {
+
+        return;
+
+      }
+
+      isTooltipDragging = false;
+
+      tooltipDragOffset = null;
 
     });
 
@@ -3679,6 +4527,12 @@ function hideGlobalTooltip(force = false) {
 
   }
 
+  if (!force && isTooltipPinned) {
+
+    return;
+
+  }
+
   if (!force && isElementHovered(globalTooltip)) {
 
     return;
@@ -3696,6 +4550,14 @@ function hideGlobalTooltip(force = false) {
   globalTooltip.style.visibility = '';
 
   isTooltipVisible = false;
+
+  isTooltipPinned = false;
+
+  isTooltipDragging = false;
+
+  tooltipDragOffset = null;
+
+  tooltipManualPositioned = false;
 
   globalTooltipOwner = null;
 
@@ -3715,120 +4577,233 @@ function repositionGlobalTooltip() {
 
   }
 
+  if (tooltipManualPositioned) {
+
+    return;
+
+  }
+
   positionTooltip(globalTooltipOwner, globalTooltip);
 
 }
 
 
 
-function createTooltipHTML(dataList, matchText) {
+function buildTooltipHeader() {
+  const header = document.createElement('div');
+  header.className = 'vocab-tooltip-header';
 
-  let tooltipHTML = '';
+  const pinButton = document.createElement('button');
+  pinButton.className = 'vocab-tooltip-pin';
+  pinButton.type = 'button';
+  pinButton.setAttribute('aria-label', '图钉');
+  pinButton.setAttribute('aria-pressed', 'false');
 
+  const svgNs = 'http://www.w3.org/2000/svg';
+  const pinSvg = document.createElementNS(svgNs, 'svg');
+  pinSvg.setAttribute('viewBox', '0 0 16 16');
+  pinSvg.setAttribute('aria-hidden', 'true');
+  pinSvg.setAttribute('focusable', 'false');
+  const pinPath = document.createElementNS(svgNs, 'path');
+  pinPath.setAttribute('d', 'M6 0h4l1 1v3l2 2v1H3V6l2-2V1zM8 9c.6 0 1 .4 1 1v6H7v-6c0-.6.4-1 1-1z');
+  pinSvg.appendChild(pinPath);
+  pinButton.appendChild(pinSvg);
 
+  const dragHandle = document.createElement('div');
+  dragHandle.className = 'vocab-tooltip-drag';
+  dragHandle.setAttribute('aria-label', '拖动');
 
-  // 确定实际使用的标注模式
+  const closeButton = document.createElement('button');
+  closeButton.className = 'vocab-tooltip-close';
+  closeButton.type = 'button';
+  closeButton.setAttribute('aria-label', '关闭');
+  closeButton.textContent = '×';
 
-  const effectiveMode = annotationMode === 'auto' ? actualAnnotationMode : annotationMode;
+  header.appendChild(pinButton);
+  header.appendChild(dragHandle);
+  header.appendChild(closeButton);
 
-
-
-  dataList.forEach((data, index) => {
-
-    if (index > 0) {
-
-      tooltipHTML += '<hr class="vocab-divider">';
-
-    }
-
-
-
-    tooltipHTML += '<div class="vocab-item">';
-
-
-
-    if (effectiveMode === 'cn-to-en') {
-
-      tooltipHTML += `<div class="vocab-word">${data.word} ${data.type ? `<span class="vocab-type">${data.type}</span>` : ''}</div>`;
-
-
-
-      if (data.allTranslations && data.allTranslations.length > 0) {
-
-        tooltipHTML += '<div class="vocab-translations">';
-
-        data.allTranslations.forEach(trans => {
-
-          tooltipHTML += `<div>- ${trans.translation} <span class="vocab-type-small">${trans.type || ''}</span></div>`;
-
-        });
-
-        tooltipHTML += '</div>';
-
-      }
-
-    } else if (effectiveMode === 'en-to-cn') {
-
-      tooltipHTML += `<div class="vocab-word">${data.word}</div>`;
-
-
-
-      if (data.allTranslations && data.allTranslations.length > 0) {
-
-        tooltipHTML += '<div class="vocab-translations">';
-
-        data.allTranslations.forEach(trans => {
-
-          tooltipHTML += `<div>- ${trans.translation} <span class="vocab-type-small">${trans.type || ''}</span></div>`;
-
-        });
-
-        tooltipHTML += '</div>';
-
-      }
-
-    }
-
-
-
-    if (data.phrases && data.phrases.length > 0) {
-
-      tooltipHTML += '<div class="vocab-phrases-title">常用短语</div>';
-
-      tooltipHTML += '<div class="vocab-phrases">';
-
-      data.phrases.forEach(phrase => {
-
-        tooltipHTML += '<div class="vocab-phrase">';
-
-        tooltipHTML += `<div class="vocab-phrase-text">${phrase.phrase}</div>`;
-
-        if (phrase.translations && phrase.translations.length > 0) {
-
-          tooltipHTML += `<div class="vocab-phrase-trans">${phrase.translations.join('；')}</div>`;
-
-        }
-
-        tooltipHTML += '</div>';
-
-      });
-
-      tooltipHTML += '</div>';
-
-    }
-
-
-
-    tooltipHTML += '</div>';
-
-  });
-
-
-
-  return tooltipHTML;
-
+  return header;
 }
 
+function createTooltipContent(data, matchText) {
+  if (!data) {
+    return null;
+  }
+  void matchText;
+
+  const container = document.createElement('div');
+  container.className = 'vocab-item';
+
+  const wordRow = document.createElement('div');
+  wordRow.className = 'vocab-word-row';
+
+  const wordMain = document.createElement('div');
+  wordMain.className = 'vocab-word-main';
+
+  const wordSpan = document.createElement('span');
+  wordSpan.className = 'vocab-word';
+  wordSpan.textContent = data.word || '';
+
+  const youdaoWord = encodeURIComponent(data.word || '');
+  const youdaoUrl = `https://www.youdao.com/result?word=${youdaoWord}&lang=en`;
+  const searchLink = document.createElement('a');
+  searchLink.className = 'vocab-search-btn';
+  searchLink.href = youdaoUrl;
+  searchLink.target = '_blank';
+  searchLink.rel = 'noopener noreferrer';
+  searchLink.title = '有道词典';
+  searchLink.setAttribute('aria-label', '有道词典');
+
+  const svgNs = 'http://www.w3.org/2000/svg';
+  const searchSvg = document.createElementNS(svgNs, 'svg');
+  searchSvg.classList.add('vocab-search-icon');
+  searchSvg.setAttribute('viewBox', '0 0 24 24');
+  searchSvg.setAttribute('aria-hidden', 'true');
+  searchSvg.setAttribute('focusable', 'false');
+  const searchCircle = document.createElementNS(svgNs, 'circle');
+  searchCircle.setAttribute('cx', '11');
+  searchCircle.setAttribute('cy', '11');
+  searchCircle.setAttribute('r', '7');
+  const searchLine = document.createElementNS(svgNs, 'line');
+  searchLine.setAttribute('x1', '16.65');
+  searchLine.setAttribute('y1', '16.65');
+  searchLine.setAttribute('x2', '21');
+  searchLine.setAttribute('y2', '21');
+  searchSvg.appendChild(searchCircle);
+  searchSvg.appendChild(searchLine);
+  searchLink.appendChild(searchSvg);
+
+  wordMain.appendChild(wordSpan);
+  wordMain.appendChild(searchLink);
+  wordRow.appendChild(wordMain);
+
+  if (data._posTag) {
+    const posTag = data._posTag;
+    const posSpan = document.createElement('span');
+    posSpan.className = 'vocab-inferred-pos';
+    if (typeof posTag === 'object' && posTag.pos) {
+      const methodText = posTag.method === 'rule' ? '插件根据上下文推测在当前段落中这个词的词性（可能不准确）。本次推测原因 :' : '词库推断';
+      const tooltipText = posTag.rule ? `${methodText}: ${posTag.rule}` : methodText;
+      posSpan.title = tooltipText;
+      posSpan.textContent = String(posTag.pos).toUpperCase();
+      wordRow.appendChild(posSpan);
+    } else if (typeof posTag === 'string') {
+      posSpan.title = '插件根据上下文推测在当前段落中这个词的词性（可能不准确）。本次推测原因：使用jieba词性推导）';
+      posSpan.textContent = posTag.toUpperCase();
+      wordRow.appendChild(posSpan);
+    }
+  }
+
+  container.appendChild(wordRow);
+
+  if (data.sources && data.sources.length > 0) {
+    const sources = document.createElement('div');
+    sources.className = 'vocab-sources';
+    sources.textContent = data.sources.join(', ');
+    container.appendChild(sources);
+  }
+
+  if (data.byType && Object.keys(data.byType).length > 0) {
+    const translations = document.createElement('div');
+    translations.className = 'vocab-translations';
+
+    const typeOrder = ['n', 'v', 'vt', 'vi', 'adj', 'adv', '_default'];
+    const types = Object.keys(data.byType);
+    const sortedTypes = types.sort((a, b) => {
+      const indexA = typeOrder.indexOf(a);
+      const indexB = typeOrder.indexOf(b);
+      const orderA = indexA === -1 ? typeOrder.length : indexA;
+      const orderB = indexB === -1 ? typeOrder.length : indexB;
+      return orderA - orderB;
+    });
+
+    const inferredPOS = data._posTag
+      ? (typeof data._posTag === 'string' ? data._posTag : data._posTag.pos)
+      : null;
+
+    sortedTypes.forEach(typeKey => {
+      const typeData = data.byType[typeKey];
+      if (!typeData) {
+        return;
+      }
+      const displayType = typeData.type || '';
+      const meaningsText = Array.isArray(typeData.meanings) ? typeData.meanings.join('，') : '';
+
+      const isMatched = inferredPOS && findMatchingType({ [typeKey]: typeData }, inferredPOS) === typeKey;
+      const item = document.createElement('div');
+      item.className = `vocab-trans-item${isMatched ? ' vocab-trans-matched' : ''}`;
+
+      if (displayType) {
+        const typeSpan = document.createElement('span');
+        typeSpan.className = 'vocab-type';
+        typeSpan.textContent = displayType;
+        item.appendChild(typeSpan);
+        item.appendChild(document.createTextNode(' '));
+      }
+      if (meaningsText) {
+        item.appendChild(document.createTextNode(meaningsText));
+      }
+
+      if (typeData.sources && typeData.sources.length > 0) {
+        item.appendChild(document.createTextNode(' '));
+        const sources = document.createElement('span');
+        sources.className = 'vocab-type-sources';
+        sources.textContent = `[${typeData.sources.join(', ')}]`;
+        item.appendChild(sources);
+      }
+
+      translations.appendChild(item);
+    });
+
+    container.appendChild(translations);
+  }
+
+  if (data.phrases && data.phrases.length > 0) {
+    const toggle = document.createElement('button');
+    toggle.className = 'vocab-phrases-toggle';
+    toggle.type = 'button';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.textContent = '常用短语';
+    container.appendChild(toggle);
+
+    const phrases = document.createElement('div');
+    phrases.className = 'vocab-phrases';
+
+    data.phrases.forEach(phrase => {
+      if (!phrase) {
+        return;
+      }
+      const phraseItem = document.createElement('div');
+      phraseItem.className = 'vocab-phrase';
+
+      const phraseText = document.createElement('div');
+      phraseText.className = 'vocab-phrase-text';
+      phraseText.textContent = phrase.phrase || '';
+      phraseItem.appendChild(phraseText);
+
+      if (phrase.translations && phrase.translations.length > 0) {
+        const phraseTrans = document.createElement('div');
+        phraseTrans.className = 'vocab-phrase-trans';
+        phraseTrans.textContent = phrase.translations.join('，');
+        phraseItem.appendChild(phraseTrans);
+      }
+
+      if (phrase.sources && phrase.sources.length > 0) {
+        const phraseSources = document.createElement('div');
+        phraseSources.className = 'vocab-phrase-sources';
+        phraseSources.textContent = `[${phrase.sources.join(', ')}]`;
+        phraseItem.appendChild(phraseSources);
+      }
+
+      phrases.appendChild(phraseItem);
+    });
+
+    container.appendChild(phrases);
+  }
+
+  return container;
+}
 
 
 function positionTooltip(span, tooltip) {
@@ -3917,6 +4892,131 @@ function isElementHovered(element) {
 
   }
 
+}
+
+function clampTooltipSize(size) {
+  const rawWidth = size && typeof size.width === 'number' ? size.width : TOOLTIP_SIZE_DEFAULT.width;
+  const rawHeight = size && typeof size.height === 'number' ? size.height : TOOLTIP_SIZE_DEFAULT.height;
+  const width = Math.min(TOOLTIP_SIZE_MAX.width, Math.max(TOOLTIP_SIZE_MIN.width, Math.round(rawWidth)));
+  const height = Math.min(TOOLTIP_SIZE_MAX.height, Math.max(TOOLTIP_SIZE_MIN.height, Math.round(rawHeight)));
+  return { width, height };
+}
+
+function applyTooltipSize(tooltip, size) {
+  if (!tooltip || !size) {
+    return tooltipSize;
+  }
+  const clamped = clampTooltipSize(size);
+  tooltip.style.width = `${clamped.width}px`;
+  tooltip.style.height = `${clamped.height}px`;
+  const content = tooltip.querySelector('.vocab-tooltip-content');
+  if (content) {
+    const contentHeight = Math.max(120, clamped.height - 36);
+    content.style.maxHeight = `${contentHeight}px`;
+  }
+  return clamped;
+}
+
+function saveTooltipSize(size) {
+  if (!size) {
+    return;
+  }
+  const clamped = clampTooltipSize(size);
+  tooltipSize = clamped;
+  if (tooltipSizeSaveTimer) {
+    clearTimeout(tooltipSizeSaveTimer);
+  }
+  tooltipSizeSaveTimer = setTimeout(() => {
+    chrome.storage.local.set({ [TOOLTIP_SIZE_STORAGE_KEY]: clamped }).catch(() => {});
+  }, 200);
+}
+
+function ensureTooltipResizeHandles(tooltip) {
+  if (!tooltip || tooltip.querySelector('.vocab-tooltip-resize-handle')) {
+    return;
+  }
+  const directions = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
+  directions.forEach((dir) => {
+    const handle = document.createElement('div');
+    handle.className = `vocab-tooltip-resize-handle handle-${dir}`;
+    handle.dataset.dir = dir;
+    tooltip.appendChild(handle);
+  });
+}
+
+function getPointerPosition(event) {
+  if (event.touches && event.touches.length > 0) {
+    return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  }
+  return { x: event.clientX, y: event.clientY };
+}
+
+function startTooltipResize(event, direction) {
+  if (!globalTooltip || !direction) {
+    return;
+  }
+  event.preventDefault();
+  const { x, y } = getPointerPosition(event);
+  const rect = globalTooltip.getBoundingClientRect();
+  tooltipResizeState = {
+    direction: direction,
+    startX: x,
+    startY: y,
+    startWidth: rect.width,
+    startHeight: rect.height,
+    startLeft: rect.left,
+    startTop: rect.top
+  };
+  tooltipManualPositioned = true;
+  isTooltipDragging = false;
+  tooltipDragOffset = null;
+}
+
+function handleTooltipResizeMove(event) {
+  if (!tooltipResizeState || !globalTooltip) {
+    return;
+  }
+  event.preventDefault();
+  const { x, y } = getPointerPosition(event);
+  const deltaX = x - tooltipResizeState.startX;
+  const deltaY = y - tooltipResizeState.startY;
+  let width = tooltipResizeState.startWidth;
+  let height = tooltipResizeState.startHeight;
+  let left = tooltipResizeState.startLeft;
+  let top = tooltipResizeState.startTop;
+
+  if (tooltipResizeState.direction.includes('e')) {
+    width = tooltipResizeState.startWidth + deltaX;
+  }
+  if (tooltipResizeState.direction.includes('w')) {
+    width = tooltipResizeState.startWidth - deltaX;
+  }
+  if (tooltipResizeState.direction.includes('s')) {
+    height = tooltipResizeState.startHeight + deltaY;
+  }
+  if (tooltipResizeState.direction.includes('n')) {
+    height = tooltipResizeState.startHeight - deltaY;
+  }
+
+  const clamped = clampTooltipSize({ width, height });
+  if (tooltipResizeState.direction.includes('w')) {
+    left = tooltipResizeState.startLeft + (tooltipResizeState.startWidth - clamped.width);
+  }
+  if (tooltipResizeState.direction.includes('n')) {
+    top = tooltipResizeState.startTop + (tooltipResizeState.startHeight - clamped.height);
+  }
+
+  tooltipSize = applyTooltipSize(globalTooltip, clamped);
+  globalTooltip.style.left = `${Math.round(left)}px`;
+  globalTooltip.style.top = `${Math.round(top)}px`;
+}
+
+function finishTooltipResize() {
+  if (!tooltipResizeState) {
+    return;
+  }
+  tooltipResizeState = null;
+  saveTooltipSize(tooltipSize);
 }
 
 

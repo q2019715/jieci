@@ -9,10 +9,10 @@
 .vocab-highlight {
   position: relative;
   color: var(--vocab-highlight-color);
-  font-weight: 500;
+  font-weight: inherit;
+  font-style: inherit;
+  font-variant: inherit;
   cursor: help;
-  padding: 0 2px;
-  border-radius: 2px;
   transition: background-color 0.2s;
   text-decoration: underline;
   text-decoration-style: dotted;
@@ -37,9 +37,10 @@
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   padding: 12px 12px 12px 12px;
-  min-width: 250px;
-  max-width: 400px;
-  max-height: 300px;
+  min-width: 260px;
+  min-height: 200px;
+  max-width: 600px;
+  max-height: 480px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
   font-size: 14px;
   line-height: 1.6;
@@ -50,15 +51,164 @@
   overflow: hidden;
 }
 
+.vocab-tooltip::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 25px;
+  height: 1px;
+  background: #e8e8e8;
+}
+
+.vocab-tooltip-header {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 2147483647;
+}
+
+.vocab-tooltip-pin,
+.vocab-tooltip-close {
+  all: unset;
+  width: 16px;
+  height: 16px;
+  text-align: center;
+  line-height: 16px;
+  font-size: 14px;
+  color: #777;
+  cursor: pointer;
+  background: transparent;
+  border-radius: 0;
+}
+
+.vocab-tooltip-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.vocab-tooltip-pin svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+
+.vocab-tooltip-pin.is-pinned {
+  color: #111;
+}
+
+.vocab-tooltip-pin.is-pinned svg {
+  transform: rotate(-18deg) scale(1.05);
+}
+
+.vocab-tooltip-pin.is-pinned::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e74c3c;
+  top: -2px;
+  right: -2px;
+}
+
+.vocab-tooltip-drag {
+  flex: 1;
+  height: 15px;
+  cursor: move;
+  user-select: none;
+}
+
 .vocab-tooltip-content {
   overflow-y: auto;
-  max-height: 276px;
-  padding-right: 16px;
+  max-height: calc(100% - 28px);
+  margin-top: 18px;
+  padding-right: 12px;
+  margin-right: -12px;
+}
+
+.vocab-tooltip-resize-handle {
+  position: absolute;
+  z-index: 2147483647;
+  background: transparent;
+}
+
+.vocab-tooltip-resize-handle.handle-n,
+.vocab-tooltip-resize-handle.handle-s {
+  left: 0;
+  right: 0;
+  height: 8px;
+}
+
+.vocab-tooltip-resize-handle.handle-n {
+  top: -4px;
+  cursor: ns-resize;
+}
+
+.vocab-tooltip-resize-handle.handle-s {
+  bottom: -4px;
+  cursor: ns-resize;
+}
+
+.vocab-tooltip-resize-handle.handle-e,
+.vocab-tooltip-resize-handle.handle-w {
+  top: 0;
+  bottom: 0;
+  width: 8px;
+}
+
+.vocab-tooltip-resize-handle.handle-e {
+  right: -4px;
+  cursor: ew-resize;
+}
+
+.vocab-tooltip-resize-handle.handle-w {
+  left: -4px;
+  cursor: ew-resize;
+}
+
+.vocab-tooltip-resize-handle.handle-ne,
+.vocab-tooltip-resize-handle.handle-nw,
+.vocab-tooltip-resize-handle.handle-se,
+.vocab-tooltip-resize-handle.handle-sw {
+  width: 12px;
+  height: 12px;
+}
+
+.vocab-tooltip-resize-handle.handle-ne {
+  top: -4px;
+  right: -4px;
+  cursor: nesw-resize;
+}
+
+.vocab-tooltip-resize-handle.handle-nw {
+  top: -4px;
+  left: -4px;
+  cursor: nwse-resize;
+}
+
+.vocab-tooltip-resize-handle.handle-se {
+  bottom: -4px;
+  right: -4px;
+  cursor: nwse-resize;
+}
+
+.vocab-tooltip-resize-handle.handle-sw {
+  bottom: -4px;
+  left: -4px;
+  cursor: nesw-resize;
 }
 
 /* 滚动条样式 */
 .vocab-tooltip-content::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 .vocab-tooltip-content::-webkit-scrollbar-track {
@@ -75,25 +225,13 @@
   background: #999;
 }
 
+
 /* 提示框显示在上方的情况 */
 .vocab-tooltip.show-above {
   margin-bottom: 0;
 }
 
 .vocab-tooltip-close {
-  all: unset;
-  position: absolute;
-  top: 6px;
-  right: 12px;
-  width: 20px;
-  height: 20px;
-  border-radius: 10px;
-  text-align: center;
-  line-height: 20px;
-  font-size: 16px;
-  color: #777;
-  cursor: pointer;
-  background: rgba(0, 0, 0, 0.06);
   z-index: 2147483647;
 }
 
@@ -115,6 +253,44 @@
   font-weight: 600;
   color: var(--vocab-highlight-color);
   margin-bottom: 6px;
+}
+
+.vocab-search-btn {
+  margin-left: 2px;
+  padding: 2px;
+  border-radius: 4px;
+  background: transparent;
+  color: #111;
+  border: 1px solid #111;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  text-decoration: none;
+  line-height: 1.2;
+}
+
+.vocab-search-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  .vocab-search-btn {
+    color: #fff;
+    border-color: #fff;
+  }
+  .vocab-search-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
+.vocab-search-icon {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
 }
 
 .vocab-type {
@@ -151,16 +327,36 @@
 }
 
 /* 短语部分 */
-.vocab-phrases-title {
+.vocab-phrases-toggle {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 600;
   color: #666;
   margin-top: 8px;
   margin-bottom: 4px;
   font-size: 13px;
+  cursor: pointer;
+}
+
+.vocab-phrases-toggle::after {
+  content: "▶";
+  font-size: 11px;
+  color: #999;
+}
+
+.vocab-phrases-toggle[aria-expanded="true"]::after {
+  content: "▼";
 }
 
 .vocab-phrases {
+  display: none;
   padding-left: 4px;
+}
+
+.vocab-phrases.is-open {
+  display: block;
 }
 
 .vocab-phrase {
@@ -179,4 +375,178 @@
 .vocab-phrase-trans {
   font-size: 13px;
   color: #666;
+}
+
+/* 词库来源样式 */
+.vocab-sources {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 8px;
+  padding: 2px 0;
+  border-bottom: 1px dashed #e0e0e0;
+}
+
+.vocab-trans-item {
+  margin: 6px 0;
+  color: #555;
+  line-height: 1.5;
+}
+
+.vocab-trans-item .vocab-type {
+  margin-left: 0;
+  margin-right: 6px;
+}
+
+.vocab-type-sources {
+  font-size: 10px;
+  color: #aaa;
+  margin-left: 4px;
+}
+
+.vocab-phrase-sources {
+  font-size: 10px;
+  color: #aaa;
+  margin-top: 2px;
+}
+
+/* 单词行样式（包含推测词性） */
+.vocab-word-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.vocab-word-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vocab-word-row .vocab-word {
+  margin-bottom: 0;
+}
+
+/* 推测词性标签 */
+.vocab-inferred-pos {
+  display: inline-block;
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: help;
+  flex-shrink: 0;
+}
+
+.vocab-inferred-pos:hover {
+  background: #ffc107;
+  color: #000;
+}
+
+/* 匹配的词性高亮 */
+.vocab-trans-matched {
+  background: rgba(255, 193, 7, 0.15);
+  border-left: 3px solid #ffc107;
+  padding-left: 8px;
+  margin-left: -4px;
+  border-radius: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --vocab-highlight-color: #7fb7ff;
+    --vocab-highlight-bg: rgba(127, 183, 255, 0.18);
+    --vocab-highlight-bg-strong: rgba(127, 183, 255, 0.28);
+  }
+
+  .vocab-tooltip {
+    background: #1e1f22;
+    border-color: #3a3a3a;
+    color: #e6e6e6;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  }
+
+  .vocab-tooltip::after {
+    background: #2f2f2f;
+  }
+
+  .vocab-tooltip-pin,
+  .vocab-tooltip-close {
+    color: #b0b0b0;
+  }
+
+  .vocab-tooltip-pin.is-pinned {
+    color: #ffffff;
+  }
+
+  .vocab-tooltip-close:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .vocab-tooltip-content::-webkit-scrollbar-track {
+    background: #2b2b2b;
+  }
+
+  .vocab-tooltip-content::-webkit-scrollbar-thumb {
+    background: #555;
+  }
+
+  .vocab-tooltip-content::-webkit-scrollbar-thumb:hover {
+    background: #6b6b6b;
+  }
+
+  .vocab-type-small,
+  .vocab-sources,
+  .vocab-type-sources,
+  .vocab-phrase-sources {
+    color: #9aa0a6;
+  }
+
+  .vocab-translations div,
+  .vocab-trans-item,
+  .vocab-phrase-trans {
+    color: #cfcfcf;
+  }
+
+  .vocab-divider {
+    border-top-color: #2f2f2f;
+  }
+
+  .vocab-phrases-toggle {
+    color: #cfcfcf;
+  }
+
+  .vocab-phrases-toggle::after {
+    color: #9aa0a6;
+  }
+
+  .vocab-phrase {
+    background: #2a2b2f;
+  }
+
+  .vocab-phrase-text {
+    color: #e6e6e6;
+  }
+
+  .vocab-inferred-pos {
+    background: #3a2f0a;
+    color: #ffdd88;
+    border-color: #b98b1f;
+  }
+
+  .vocab-inferred-pos:hover {
+    background: #b98b1f;
+    color: #1b1b1b;
+  }
+
+  .vocab-trans-matched {
+    background: rgba(255, 193, 7, 0.2);
+    border-left-color: #ffc107;
+  }
 }

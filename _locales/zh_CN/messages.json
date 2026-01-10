@@ -1,0 +1,8 @@
+﻿{
+    "appName":  {
+                    "message":  "截词英语学习助手"
+                },
+    "appDescription":  {
+                           "message":  "在网页中自动标注中文对应的英文单词，帮助学习英语"
+                       }
+}

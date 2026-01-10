@@ -148,31 +148,61 @@ async function ensureJiebaReady() {
 
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!message || message.type !== 'jieba-tokenize') {
+  if (!message) {
     return false;
   }
 
-  if (typeof message.text !== 'string' || message.text.length === 0) {
-    sendResponse({ ok: true, tokens: [] });
+  // 处理分词请求
+  if (message.type === 'jieba-tokenize') {
+    if (typeof message.text !== 'string' || message.text.length === 0) {
+      sendResponse({ ok: true, tokens: [] });
+      return true;
+    }
+
+    (async () => {
+      const mod = await ensureJiebaReady();
+      if (!mod) {
+        sendResponse({ ok: false, error: 'jieba-unavailable' });
+        return;
+      }
+      try {
+        const tokens = mod.tokenize(message.text, 'default', true);
+        sendResponse({ ok: true, tokens });
+      } catch (error) {
+        console.error('jieba tokenize failed:', error);
+        sendResponse({ ok: false, error: 'jieba-failed' });
+      }
+    })();
+
     return true;
   }
 
-  (async () => {
-    const mod = await ensureJiebaReady();
-    if (!mod) {
-      sendResponse({ ok: false, error: 'jieba-unavailable' });
-      return;
+  // 处理词性标注请求
+  if (message.type === 'jieba-tag') {
+    if (typeof message.text !== 'string' || message.text.length === 0) {
+      sendResponse({ ok: true, tags: [] });
+      return true;
     }
-    try {
-      const tokens = mod.tokenize(message.text, 'default', true);
-      sendResponse({ ok: true, tokens });
-    } catch (error) {
-      console.error('jieba tokenize failed:', error);
-      sendResponse({ ok: false, error: 'jieba-failed' });
-    }
-  })();
 
-  return true;
+    (async () => {
+      const mod = await ensureJiebaReady();
+      if (!mod) {
+        sendResponse({ ok: false, error: 'jieba-unavailable' });
+        return;
+      }
+      try {
+        const tags = mod.tag(message.text, true);
+        sendResponse({ ok: true, tags });
+      } catch (error) {
+        console.error('jieba tag failed:', error);
+        sendResponse({ ok: false, error: 'jieba-failed' });
+      }
+    })();
+
+    return true;
+  }
+
+  return false;
 });
 
 // SPA navigation is handled inside the page (content script) to avoid webNavigation permission.

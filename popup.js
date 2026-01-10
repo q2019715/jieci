@@ -80,12 +80,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   const dedupeModeLabels = dedupeModeSlider.closest('.mode-slider-container').querySelectorAll('.mode-label');
 
   const advancedToggle = document.getElementById('advancedToggle');
-  const advancedContent = document.getElementById('advancedContent');
-  const toggleIcon = advancedToggle.querySelector('.toggle-icon');
-
   const vocabularyToggle = document.getElementById('vocabularyToggle');
   const vocabularyContent = document.getElementById('vocabularyContent');
-  const vocabularyToggleIcon = vocabularyToggle.querySelector('.toggle-icon');
+  const pageMain = document.getElementById('pageMain');
+  const pageVocab = document.getElementById('pageVocab');
+  const pageAdvanced = document.getElementById('pageAdvanced');
+  const pageStyle = document.getElementById('pageStyle');
+  const pageAnnotation = document.getElementById('pageAnnotation');
+  const pageAbout = document.getElementById('pageAbout');
+  const vocabBack = document.getElementById('vocabBack');
+  const advancedBack = document.getElementById('advancedBack');
+  const styleNav = document.getElementById('styleNav');
+  const annotationNav = document.getElementById('annotationNav');
+  const aboutNav = document.getElementById('aboutNav');
+  const styleBack = document.getElementById('styleBack');
+  const annotationBack = document.getElementById('annotationBack');
+  const aboutBack = document.getElementById('aboutBack');
+  const aboutVersion = document.getElementById('aboutVersion');
+  const oobe = document.getElementById('oobe');
+  const oobeNext1 = document.getElementById('oobeNext1');
+  const oobeNext2 = document.getElementById('oobeNext2');
+  const oobeOpenDownload = document.getElementById('oobeOpenDownload');
+  const oobeGoExample = document.getElementById('oobeGoExample');
+  const oobeSkip = document.getElementById('oobeSkip');
+  const oobeSteps = Array.from(document.querySelectorAll('.oobe-step'));
+  const oobeTitle1 = document.getElementById('oobeTitle1');
+  const oobeText1 = document.getElementById('oobeText1');
+  const oobeTitle2 = document.getElementById('oobeTitle2');
+  const oobeText2 = document.getElementById('oobeText2');
+  const oobeTitle3 = document.getElementById('oobeTitle3');
+  const oobeText3 = document.getElementById('oobeText3');
+  const oobeVocabList = document.getElementById('oobeVocabList');
+  const oobeVocabEmpty = document.getElementById('oobeVocabEmpty');
 
   const importBtn = document.getElementById('importBtn');
   const fileInput = document.getElementById('fileInput');
@@ -104,6 +130,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const highlightModeSelect = document.getElementById('highlightMode');
   const highlightColorInput = document.getElementById('highlightColor');
   const smartSkipCodeLinksToggle = document.getElementById('smartSkipCodeLinks');
+  const resetPopupSizeButton = document.getElementById('resetPopupSize');
+  const resetPopupSizeStatus = document.getElementById('resetPopupSizeStatus');
 
   // 下载相关元素
   const downloadBtn = document.getElementById('downloadBtn');
@@ -117,6 +145,163 @@ document.addEventListener('DOMContentLoaded', async () => {
   const progressBar = document.getElementById('progressBar');
 
   const SERVER_URL = 'https://api.jieci.top';
+  const TOOLTIP_SIZE_STORAGE_KEY = 'tooltipSize';
+  const OOBE_COMPLETION_KEY = 'oobeCompletedCount';
+  const OOBE_STEP_KEY = 'oobeStep';
+  const OOBE_REQUIRED_COUNT = 1;
+
+  const scheduleOverflowUpdate = () => {
+    requestAnimationFrame(() => {
+      const viewportHeight = document.documentElement.clientHeight;
+      const contentHeight = document.body.scrollHeight;
+      document.body.style.overflowY = contentHeight > viewportHeight ? 'auto' : 'hidden';
+    });
+  };
+
+  const helpIcons = document.querySelectorAll('.help-icon');
+
+  const updateHelpTooltipPosition = (icon) => {
+    const tooltip = icon.querySelector('.help-tooltip');
+    if (!tooltip) {
+      return;
+    }
+    const iconRect = icon.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const padding = 8;
+    const spaceBelow = window.innerHeight - iconRect.bottom;
+    const spaceAbove = iconRect.top;
+    let top;
+    if (spaceBelow < tooltipRect.height + padding && spaceAbove > spaceBelow) {
+      top = iconRect.top - tooltipRect.height - 6;
+    } else {
+      top = iconRect.bottom + 6;
+    }
+    let left = iconRect.left + iconRect.width / 2 - tooltipRect.width / 2;
+    left = Math.max(padding, Math.min(left, window.innerWidth - padding - tooltipRect.width));
+    tooltip.style.left = `${Math.round(left)}px`;
+    tooltip.style.top = `${Math.round(top)}px`;
+  };
+
+  const showHelpTooltip = (icon) => {
+    icon.classList.add('is-visible');
+    requestAnimationFrame(() => updateHelpTooltipPosition(icon));
+  };
+
+  const hideHelpTooltip = (icon) => {
+    icon.classList.remove('is-visible');
+    icon.classList.remove('tooltip-up');
+  };
+
+  helpIcons.forEach((icon) => {
+    icon.addEventListener('mouseenter', () => showHelpTooltip(icon));
+    icon.addEventListener('mouseleave', () => hideHelpTooltip(icon));
+    icon.addEventListener('focusin', () => showHelpTooltip(icon));
+    icon.addEventListener('focusout', () => hideHelpTooltip(icon));
+    icon.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+  });
+  window.addEventListener('resize', scheduleOverflowUpdate);
+
+  const pages = [pageMain, pageVocab, pageAdvanced, pageStyle, pageAnnotation, pageAbout];
+  const showPage = (page) => {
+    pages.forEach((item) => {
+      if (!item) {
+        return;
+      }
+      item.classList.toggle('is-active', item === page);
+    });
+    scheduleOverflowUpdate();
+  };
+
+  if (aboutVersion && chrome.runtime?.getManifest) {
+    aboutVersion.textContent = chrome.runtime.getManifest().version || '-';
+  }
+
+  if (oobeTitle1) {
+    oobeTitle1.textContent = 'Hello 你好 ⌯･ᴗ･⌯';
+  }
+  if (oobeText1) {
+    oobeText1.textContent = '欢迎使用本插件。本插件通过将您浏览的网页中的单词标注为对应的外语单词，让您在日常阅读中看到更多的外语，记住更多的单词！';
+  }
+  if (oobeNext1) {
+    oobeNext1.textContent = '让我们开始吧';
+  }
+  if (oobeTitle2) {
+    oobeTitle2.textContent = '让我们决定下要背的单词吧';
+  }
+  if (oobeText2) {
+    oobeText2.textContent = '点击下载词库，选择您想要背诵的单词列表。我们会依照这个词库里头的词，在网页上进行对应的标注。您可以后续在插件中添加或者删除词库。';
+  }
+  if (oobeOpenDownload) {
+    oobeOpenDownload.textContent = '让我看看（下载词库）';
+  }
+  if (oobeNext2) {
+    oobeNext2.textContent = '我选好了，下一步';
+  }
+  if (oobeTitle3) {
+    oobeTitle3.textContent = '大功告成！感谢您的使用';
+  }
+  if (oobeText3) {
+    oobeText3.textContent = '您可以前往我们的实例页面，看下插件工作的怎么样。如果您在使用的时候有任何问题，请一定要跟我们反馈哦~';
+  }
+  if (oobeGoExample) {
+    oobeGoExample.textContent = '带我去示例页面看看';
+  }
+  if (oobeSkip) {
+    oobeSkip.textContent = '谢了~暂时不必';
+  }
+
+
+  const showOobeStep = (step) => {
+    oobeSteps.forEach((item) => {
+      if (!item) {
+        return;
+      }
+      const isActive = item.dataset.step === String(step);
+      item.classList.toggle('is-active', isActive);
+    });
+    chrome.storage.local.set({ [OOBE_STEP_KEY]: step }).catch(() => {});
+  };
+
+  const setOobeVisible = (visible) => {
+    if (!oobe) {
+      return;
+    }
+    oobe.classList.toggle('is-hidden', !visible);
+  };
+
+  const updateOobeVocabList = (vocabList) => {
+    if (!oobeVocabList || !oobeVocabEmpty) {
+      return;
+    }
+    oobeVocabList.replaceChildren();
+    const items = Array.isArray(vocabList) ? vocabList : [];
+    if (items.length === 0) {
+      oobeVocabEmpty.style.display = 'block';
+      return;
+    }
+    oobeVocabEmpty.style.display = 'none';
+    items.forEach((vocab) => {
+      const item = document.createElement('div');
+      item.className = 'oobe-vocab-item';
+      item.textContent = vocab && vocab.name ? vocab.name : '未命名词库';
+      oobeVocabList.appendChild(item);
+    });
+  };
+
+  const markOobeCompleted = async () => {
+    const result = await chrome.storage.local.get(OOBE_COMPLETION_KEY);
+    const current = Number.isFinite(result[OOBE_COMPLETION_KEY])
+      ? result[OOBE_COMPLETION_KEY]
+      : 0;
+    const next = Math.min(OOBE_REQUIRED_COUNT, current + 1);
+    await chrome.storage.local.set({ [OOBE_COMPLETION_KEY]: next });
+    await chrome.storage.local.remove(OOBE_STEP_KEY);
+    setOobeVisible(false);
+    showPage(pageMain);
+  };
 
 
   const getActiveTabs = async () => {
@@ -182,35 +367,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     'count': 2
   };
 
-  // 加载高级设置折叠状态（默认折叠）
-  const advancedCollapsed = localStorage.getItem('advancedCollapsed') !== 'false';
-  if (advancedCollapsed) {
-    advancedContent.style.display = 'none';
-    toggleIcon.textContent = '▶';
+  if (vocabularyContent) {
+    vocabularyContent.style.display = 'block';
+  }
+  showPage(pageMain);
+
+  if (vocabularyToggle) {
+    vocabularyToggle.addEventListener('click', () => showPage(pageVocab));
+  }
+  if (advancedToggle) {
+    advancedToggle.addEventListener('click', () => showPage(pageAdvanced));
+  }
+  if (styleNav) {
+    styleNav.addEventListener('click', () => showPage(pageStyle));
+  }
+  if (annotationNav) {
+    annotationNav.addEventListener('click', () => showPage(pageAnnotation));
+  }
+  if (aboutNav) {
+    aboutNav.addEventListener('click', () => showPage(pageAbout));
+  }
+  if (vocabBack) {
+    vocabBack.addEventListener('click', () => showPage(pageMain));
+  }
+  if (advancedBack) {
+    advancedBack.addEventListener('click', () => showPage(pageMain));
+  }
+  if (styleBack) {
+    styleBack.addEventListener('click', () => showPage(pageAdvanced));
+  }
+  if (annotationBack) {
+    annotationBack.addEventListener('click', () => showPage(pageAdvanced));
+  }
+  if (aboutBack) {
+    aboutBack.addEventListener('click', () => showPage(pageAdvanced));
   }
 
-  // 加载词库管理折叠状态（默认折叠）
-  const vocabularyCollapsed = localStorage.getItem('vocabularyCollapsed') !== 'false';
-  if (vocabularyCollapsed) {
-    vocabularyContent.style.display = 'none';
-    vocabularyToggleIcon.textContent = '▶';
+  if (oobeNext1) {
+    oobeNext1.addEventListener('click', () => showOobeStep(2));
   }
-
-  // 高级设置折叠切换
-  advancedToggle.addEventListener('click', () => {
-    const isCollapsed = advancedContent.style.display === 'none';
-    advancedContent.style.display = isCollapsed ? 'block' : 'none';
-    toggleIcon.textContent = isCollapsed ? '▼' : '▶';
-    localStorage.setItem('advancedCollapsed', !isCollapsed);
-  });
-
-  // 词库管理折叠切换
-  vocabularyToggle.addEventListener('click', () => {
-    const isCollapsed = vocabularyContent.style.display === 'none';
-    vocabularyContent.style.display = isCollapsed ? 'block' : 'none';
-    vocabularyToggleIcon.textContent = isCollapsed ? '▼' : '▶';
-    localStorage.setItem('vocabularyCollapsed', !isCollapsed);
-  });
+  if (oobeOpenDownload) {
+    oobeOpenDownload.addEventListener('click', () => openDownloadModal());
+  }
+  if (oobeNext2) {
+    oobeNext2.addEventListener('click', () => showOobeStep(3));
+  }
+  if (oobeGoExample) {
+    oobeGoExample.addEventListener('click', async () => {
+      chrome.tabs.create({ url: 'https://jieci.top/testplugin.html' });
+      await markOobeCompleted();
+    });
+  }
+  if (oobeSkip) {
+    oobeSkip.addEventListener('click', async () => {
+      await markOobeCompleted();
+    });
+  }
 
   // 更新显示模式滑块位置和标签状态
   function updateDisplayModeSliderUI(value) {
@@ -362,7 +574,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   minTextLengthSlider.addEventListener('input', async () => {
-    const minLength = parseInt(minTextLengthSlider.value, 10) || 0;
+    const rawLength = parseInt(minTextLengthSlider.value, 10) || 0;
+    const minLength = Math.max(5, rawLength);
     minTextLengthLabel.textContent = minLength;
     await chrome.storage.local.set({ minTextLength: minLength });
 
@@ -384,11 +597,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   clearDedupeCountsButton.addEventListener('click', async () => {
-    await chrome.storage.local.remove('dedupeGlobalState');
-
-    await notifyActiveTabs({
-      action: 'clearDedupeCounts'
-    });
+    const originalText = clearDedupeCountsButton.textContent;
+    clearDedupeCountsButton.disabled = true;
+    clearDedupeCountsButton.textContent = '删除中...';
+    try {
+      await chrome.storage.local.remove('dedupeGlobalState');
+      await notifyActiveTabs({
+        action: 'clearDedupeCounts'
+      });
+      clearDedupeCountsButton.textContent = '已删除';
+      setTimeout(() => {
+        clearDedupeCountsButton.textContent = originalText || '删除';
+        clearDedupeCountsButton.disabled = false;
+      }, 1500);
+    } catch (error) {
+      clearDedupeCountsButton.textContent = originalText || '删除';
+      clearDedupeCountsButton.disabled = false;
+    }
   });
 
   smartSkipCodeLinksToggle.addEventListener('change', async () => {
@@ -400,6 +625,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       enabled: enabled
     });
   });
+
+  const debugModeToggle = document.getElementById('debugMode');
+  debugModeToggle.addEventListener('change', async () => {
+    const enabled = debugModeToggle.checked;
+    await chrome.storage.local.set({ debugMode: enabled });
+
+    await notifyActiveTabs({
+      action: 'updateDebugMode',
+      enabled: enabled
+    });
+  });
+  if (resetPopupSizeButton) {
+    resetPopupSizeButton.addEventListener('click', async () => {
+      const originalText = resetPopupSizeButton.textContent;
+      await chrome.storage.local.remove(TOOLTIP_SIZE_STORAGE_KEY);
+      await notifyActiveTabs({ action: 'resetTooltipSize' }, false);
+      if (resetPopupSizeButton) {
+        resetPopupSizeButton.textContent = '已重置';
+        resetPopupSizeButton.disabled = true;
+        setTimeout(() => {
+          resetPopupSizeButton.textContent = originalText || '重置';
+          resetPopupSizeButton.disabled = false;
+        }, 1500);
+      }
+    });
+  }
 
   const updateHighlightControls = (mode) => {
     highlightColorInput.disabled = mode !== 'custom';
@@ -494,13 +745,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     dictionaries.forEach(dict => {
       const dictItem = document.createElement('div');
       dictItem.className = 'dict-item';
-      dictItem.innerHTML = `
-        <div class="dict-name">${dict.name || '未命名词库'}</div>
-        <div class="dict-info">
-          <span>词条数: ${dict.wordCount || 0}</span>
-          <span class="dict-size">${formatFileSize(dict.size || 0)}</span>
-        </div>
-      `;
+      const dictName = document.createElement('div');
+      dictName.className = 'dict-name';
+      dictName.textContent = dict.name || '未命名词库';
+      const dictInfo = document.createElement('div');
+      dictInfo.className = 'dict-info';
+      const dictCount = document.createElement('span');
+      dictCount.textContent = `词条数: ${dict.wordCount || 0}`;
+      const dictSize = document.createElement('span');
+      dictSize.className = 'dict-size';
+      dictSize.textContent = formatFileSize(dict.size || 0);
+      dictInfo.appendChild(dictCount);
+      dictInfo.appendChild(dictSize);
+      dictItem.appendChild(dictName);
+      dictItem.appendChild(dictInfo);
 
       dictItem.addEventListener('click', () => {
         downloadDictionary(dict);
@@ -522,24 +780,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     progressBar.style.width = '0%';
 
     try {
+      const vocabularies = await chrome.storage.local.get('vocabularies') || {};
+      const vocabList = vocabularies.vocabularies || [];
+      const dictName = (dict.name || '').trim();
+      if (dictName && vocabList.some(vocab => (vocab.name || '').trim() === dictName)) {
+        downloadingDict.textContent = '抱歉，已经有一个同名词库了，您可以删除本地词库，再重新进行下载';
+        progressPercent.textContent = '';
+        setTimeout(() => {
+          closeDownloadModal();
+        }, 2000);
+        return;
+      }
+
       const url = `${SERVER_URL}/dict/${dict.filename || dict.name}`;
 
       // 使用XMLHttpRequest以支持进度跟踪
       const xhr = new XMLHttpRequest();
       xhr.open('GET', url, true);
       xhr.responseType = 'text';
+      let lastPercent = 0;
 
 
       xhr.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const percent = Math.round((event.loaded / event.total) * 100);
-          progressPercent.textContent = `${percent}%`;
-          progressBar.style.width = `${percent}%`;
-
-          // 计算下载速度
-
-
-
+        const total = event.lengthComputable ? event.total : (dict.size || 0);
+        if (total > 0) {
+          const rawPercent = Math.round((event.loaded / total) * 100);
+          const percent = Math.min(99, Math.max(0, rawPercent));
+          if (percent > lastPercent) {
+            lastPercent = percent;
+            progressPercent.textContent = `${percent}%`;
+            progressBar.style.width = `${percent}%`;
+          }
         }
       };
 
@@ -629,7 +900,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    importStatus.textContent = '\u5bfc\u5165\u4e2d...';
+    importStatus.textContent = '导入中...';
     importStatus.className = 'import-status importing';
 
     try {
@@ -641,7 +912,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const data = JSON.parse(content);
 
         if (!Array.isArray(data)) {
-          throw new Error(file.name + ' \u683c\u5f0f\u4e0d\u6b63\u786e');
+          throw new Error(file.name + ' 格式不正确');
         }
 
         vocabList.push({
@@ -661,7 +932,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await chrome.storage.local.set({ vocabularyTrieIndex: trieIndex });
       console.log('Trie树索引构建完成并已缓存');
 
-      importStatus.textContent = '\u6210\u529f\u5bfc\u5165 ' + files.length + ' \u4e2a\u6587\u4ef6';
+      importStatus.textContent = '导入成功' + files.length + '一份';
       importStatus.className = 'import-status success';
 
       await loadSettings();
@@ -673,7 +944,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }, 3000);
 
     } catch (error) {
-      importStatus.textContent = '\u5bfc\u5165\u5931\u8d25: ' + error.message;
+      importStatus.textContent = '导入失败: ' + error.message;
       importStatus.className = 'import-status error';
     }
 
@@ -692,16 +963,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       'smartSkipCodeLinks',
       'dedupeMode',
       'dedupeRepeatCount',
-      'dedupeCooldownSeconds'
+      'dedupeCooldownSeconds',
+      'debugMode',
+      OOBE_COMPLETION_KEY,
+      OOBE_STEP_KEY
     ]);
     const displayMode = result.displayMode || 'off';
     const vocabList = result.vocabularies || [];
     const maxMatches = (typeof result.maxMatchesPerNode === 'number') ? result.maxMatchesPerNode : 3;
-    const minLength = (typeof result.minTextLength === 'number') ? result.minTextLength : 10;
+    const storedMinLength = (typeof result.minTextLength === 'number') ? result.minTextLength : 5;
+    const minLength = Math.max(5, storedMinLength);
     const annotationMode = result.annotationMode || 'auto';
     const highlightMode = result.highlightColorMode || 'none';
     const highlightColor = result.highlightColor || '#2196f3';
     const smartSkipCodeLinks = result.smartSkipCodeLinks !== false;
+    const debugMode = result.debugMode === true;
     let dedupeMode = result.dedupeMode || 'page';
     if (dedupeMode === 'cooldown') {
       dedupeMode = 'count';
@@ -727,15 +1003,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateMaxMatchesUI(maxMatches);
     minTextLengthSlider.value = minLength;
     minTextLengthLabel.textContent = minLength;
+    if (storedMinLength < 5) {
+      await chrome.storage.local.set({ minTextLength: minLength });
+      await notifyActiveTabs({
+        action: 'updateMinTextLength',
+        minLength: minLength
+      });
+    }
     dedupeRepeatCountSlider.value = dedupeRepeatCount;
     dedupeRepeatCountLabel.textContent = dedupeRepeatCount;
     highlightModeSelect.value = highlightMode;
     highlightColorInput.value = highlightColor;
     updateHighlightControls(highlightMode);
     smartSkipCodeLinksToggle.checked = smartSkipCodeLinks;
-
+    debugModeToggle.checked = debugMode;
     displayFilesList(vocabList);
     updateStats(vocabList);
+    updateOobeVocabList(vocabList);
+    const completionCount = Number.isFinite(result[OOBE_COMPLETION_KEY])
+      ? result[OOBE_COMPLETION_KEY]
+      : 0;
+    const shouldShowOobe = completionCount < OOBE_REQUIRED_COUNT;
+    setOobeVisible(shouldShowOobe);
+    if (shouldShowOobe) {
+      const storedStep = Number.isFinite(result[OOBE_STEP_KEY])
+        ? result[OOBE_STEP_KEY]
+        : 1;
+      const step = Math.min(3, Math.max(1, storedStep));
+      showOobeStep(step);
+    }
+    scheduleOverflowUpdate();
   }
 
   function displayFilesList(vocabList) {
@@ -743,25 +1040,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     filesList.innerHTML = '';
 
     if (vocabList.length === 0) {
-      filesList.innerHTML = '<div class="empty-state">\u6682\u65e0\u5bfc\u5165\u7684\u8bcd\u5e93\u6587\u4ef6</div>';
+      filesList.innerHTML = '<div class="empty-state">暂无导入的词库文件</div>';
       return;
     }
 
     vocabList.forEach(vocab => {
       const fileItem = document.createElement('div');
       fileItem.className = 'file-item';
-      fileItem.innerHTML =
-        '<div class="file-info">' +
-          '<div class="file-name">' + vocab.name + '</div>' +
-          '<div class="file-meta">' +
-            '\u8bcd\u6761\u6570: ' + vocab.wordCount + ' | ' +
-            '\u5bfc\u5165\u65f6\u95f4: ' + formatDate(vocab.uploadTime) +
-          '</div>' +
-        '</div>' +
-        '<button class="btn btn-delete" data-id="' + vocab.id + '">\u5220\u9664</button>';
-
-      fileItem.querySelector('.btn-delete').addEventListener('click', async () => {
-        await deleteVocabulary(vocab.id);
+      const fileInfo = document.createElement('div');
+      fileInfo.className = 'file-info';
+      const fileName = document.createElement('div');
+      fileName.className = 'file-name';
+      fileName.textContent = vocab.name || '未命名词库';
+      const fileMeta = document.createElement('div');
+      fileMeta.className = 'file-meta';
+      fileMeta.textContent = `词条数: ${vocab.wordCount} | 导入时间: ${formatDate(vocab.uploadTime)}`;
+      const deleteButton = document.createElement('button');
+      deleteButton.className = 'btn btn-delete';
+      deleteButton.dataset.id = vocab.id;
+      deleteButton.textContent = '删除';
+      fileInfo.appendChild(fileName);
+      fileInfo.appendChild(fileMeta);
+      fileItem.appendChild(fileInfo);
+      fileItem.appendChild(deleteButton);
+      deleteButton.addEventListener('click', async () => {
+        deleteButton.disabled = true;
+        deleteButton.textContent = '删除中...';
+        try {
+          await deleteVocabulary(vocab.id);
+        } catch (error) {
+          deleteButton.disabled = false;
+          deleteButton.textContent = '删除';
+          importStatus.textContent = '删除失败: ' + error.message;
+          importStatus.className = 'import-status error';
+        }
       });
 
       filesList.appendChild(fileItem);

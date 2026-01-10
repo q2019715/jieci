@@ -1,57 +1,58 @@
-{
-  "update_url": "https://clients2.google.com/service/update2/crx",
-  "manifest_version": 3,
-  "name": "截词英语学习助手",
-  "version": "1.0.1",
-  "description": "在网页中自动标注中文对应的英文单词，帮助学习英语",
-  "permissions": [
-    "storage",
-    "unlimitedStorage"
-  ],
-  "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icon16.png",
-      "48": "icon48.png",
-      "128": "icon128.png"
-    }
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "content.js"
-      ],
-      "css": [
-        "content-styles.css"
-      ],
-      "run_at": "document_idle",
-      "type": "module"
-    }
-  ],
-  "background": {
-    "service_worker": "background.js",
-    "type": "module"
-  },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "vendor/jieba_rs_wasm.js",
-        "vendor/jieba_rs_wasm_bg.wasm"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
-    }
-  ],
-  "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
-  }
+﻿{
+    "update_url":  "https://clients2.google.com/service/update2/crx",
+    "manifest_version":  3,
+    "name":  "__MSG_appName__",
+    "version":  "1.1.0",
+    "description":  "__MSG_appDescription__",
+    "permissions":  [
+                        "storage",
+                        "unlimitedStorage"
+                    ],
+    "action":  {
+                   "default_popup":  "popup.html",
+                   "default_icon":  {
+                                        "16":  "icon16.png",
+                                        "48":  "icon48.png",
+                                        "128":  "icon128.png"
+                                    }
+               },
+    "content_scripts":  [
+                            {
+                                "matches":  [
+                                                "\u003call_urls\u003e"
+                                            ],
+                                "js":  [
+                                           "content.js"
+                                       ],
+                                "css":  [
+                                            "content-styles.css"
+                                        ],
+                                "run_at":  "document_idle",
+                                "type":  "module"
+                            }
+                        ],
+    "background":  {
+                       "service_worker":  "background.js",
+                       "type":  "module"
+                   },
+    "content_security_policy":  {
+                                    "extension_pages":  "script-src \u0027self\u0027 \u0027wasm-unsafe-eval\u0027; object-src \u0027self\u0027"
+                                },
+    "web_accessible_resources":  [
+                                     {
+                                         "resources":  [
+                                                           "vendor/jieba_rs_wasm.js",
+                                                           "vendor/jieba_rs_wasm_bg.wasm"
+                                                       ],
+                                         "matches":  [
+                                                         "\u003call_urls\u003e"
+                                                     ]
+                                     }
+                                 ],
+    "icons":  {
+                  "16":  "icon16.png",
+                  "48":  "icon48.png",
+                  "128":  "icon128.png"
+              },
+    "default_locale":  "zh_CN"
 }
