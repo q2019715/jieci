@@ -1,11 +1,85 @@
-/* content-styles.css - 网页中标注的样式 */
+/* content-styles.css - 完整可用版（暗色短语卡片修复 + 玻璃效果统一变量） */
 
 :root {
-  --vocab-highlight-color: #2196F3;
+  /* 高亮 */
+  --vocab-highlight-color: #2196f3;
   --vocab-highlight-bg: rgba(33, 150, 243, 0.1);
   --vocab-highlight-bg-strong: rgba(33, 150, 243, 0.2);
+
+  /* Tooltip 主题（亮色） */
+  --vt-bg: rgba(255, 255, 255, 0.72);
+  --vt-border: rgba(255, 255, 255, 0.40);
+  --vt-divider: rgba(0, 0, 0, 0.08);
+  --vt-text: #333;
+  --vt-text-strong: #111;
+  --vt-muted: #666;
+  --vt-muted-2: #999;
+  --vt-hover: rgba(0, 0, 0, 0.08);
+  --vt-hover-strong: rgba(0, 0, 0, 0.12);
+  --vt-shadow-1: rgba(0, 0, 0, 0.18);
+  --vt-shadow-2: rgba(0, 0, 0, 0.08);
+  --vt-blur: 14px;
+
+  /* 图标/按钮 */
+  --vt-icon: #111;
+  --vt-danger: #c0392b;
+
+  /* 滚动条 */
+  --vt-scroll-track: #f1f1f1;
+  --vt-scroll-thumb: #ccc;
+  --vt-scroll-thumb-hover: #999;
+
+  /* 短语卡片（亮色） */
+  --vt-phrase-bg: rgba(255, 255, 255, 0.55);
+  --vt-phrase-border: rgba(255, 255, 255, 0.35);
+  --vt-phrase-outline: rgba(0, 0, 0, 0.18);
+  --vt-phrase-outline-strong: rgba(33, 150, 243, 0.38);
+
+  /* 收藏激活态 */
+  --vt-fav-bg: #ffe7a3;
+  --vt-fav-border: #c49a00;
+  --vt-fav-text: #7a5a00;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --vocab-highlight-color: #7fb7ff;
+    --vocab-highlight-bg: rgba(127, 183, 255, 0.18);
+    --vocab-highlight-bg-strong: rgba(127, 183, 255, 0.28);
+
+    --vt-bg: rgba(30, 31, 34, 0.72);
+    --vt-border: rgba(255, 255, 255, 0.12);
+    --vt-divider: rgba(255, 255, 255, 0.12);
+    --vt-text: rgba(255, 255, 255, 0.90);
+    --vt-text-strong: #fff;
+    --vt-muted: rgba(255, 255, 255, 0.70);
+    --vt-muted-2: #9aa0a6;
+    --vt-hover: rgba(255, 255, 255, 0.10);
+    --vt-hover-strong: rgba(255, 255, 255, 0.12);
+    --vt-shadow-1: rgba(0, 0, 0, 0.50);
+    --vt-shadow-2: rgba(0, 0, 0, 0.25);
+    --vt-blur: 14px;
+
+    --vt-icon: #fff;
+    --vt-danger: #ff8a7a;
+
+    --vt-scroll-track: #2b2b2b;
+    --vt-scroll-thumb: #555;
+    --vt-scroll-thumb-hover: #6b6b6b;
+
+    /* 关键：暗色短语卡片一定要是深色（不再被任何“玻璃化”刷回白） */
+    --vt-phrase-bg: rgba(40, 42, 46, 0.60);
+    --vt-phrase-border: rgba(255, 255, 255, 0.10);
+    --vt-phrase-outline: rgba(255, 255, 255, 0.16);
+    --vt-phrase-outline-strong: rgba(127, 183, 255, 0.55);
+
+    --vt-fav-bg: rgba(245, 207, 90, 0.15);
+    --vt-fav-border: #f5cf5a;
+    --vt-fav-text: #f5cf5a;
+  }
+}
+
+/* 文本高亮 */
 .vocab-highlight {
   position: relative;
   color: var(--vocab-highlight-color);
@@ -23,7 +97,7 @@
   background-color: var(--vocab-highlight-bg);
 }
 
-/* 提示框 */
+/* Tooltip（整体隔离 + 玻璃效果） */
 .vocab-tooltip {
   all: initial;
   display: none;
@@ -32,23 +106,42 @@
   top: 0;
   margin-top: 0;
   z-index: 2147483647;
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 12px 12px 12px 12px;
+
+  padding: 12px;
   min-width: 260px;
   min-height: 200px;
   max-width: 600px;
   max-height: 480px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
   font-size: 14px;
   line-height: 1.6;
-  color: #333;
+
+  color: var(--vt-text);
+  background: var(--vt-bg);
+  border: 1px solid var(--vt-border);
+  border-radius: 8px;
+
+  box-shadow:
+          0 12px 34px var(--vt-shadow-1),
+          0 2px 10px var(--vt-shadow-2);
+
+  backdrop-filter: blur(var(--vt-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--vt-blur)) saturate(180%);
+
+  background-clip: padding-box;
+
   white-space: normal;
   pointer-events: auto;
   box-sizing: border-box;
   overflow: hidden;
+  color-scheme: light dark;
+}
+
+/* 关键：隔离宿主站点的 box-sizing/对齐差异 */
+.vocab-tooltip,
+.vocab-tooltip * {
+  box-sizing: border-box;
 }
 
 .vocab-tooltip::after {
@@ -58,9 +151,23 @@
   right: 0;
   top: 25px;
   height: 1px;
-  background: #e8e8e8;
+  background: var(--vt-divider);
 }
 
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .vocab-tooltip {
+    background: #fff;
+    border-color: rgba(0, 0, 0, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    .vocab-tooltip {
+      background: #1e1f22;
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+  }
+}
+
+/* Header */
 .vocab-tooltip-header {
   position: absolute;
   top: 6px;
@@ -81,7 +188,7 @@
   text-align: center;
   line-height: 16px;
   font-size: 14px;
-  color: #777;
+  color: var(--vt-muted-2);
   cursor: pointer;
   background: transparent;
   border-radius: 0;
@@ -97,11 +204,12 @@
 .vocab-tooltip-pin svg {
   width: 12px;
   height: 12px;
+  display: block;
   fill: currentColor;
 }
 
 .vocab-tooltip-pin.is-pinned {
-  color: #111;
+  color: var(--vt-text-strong);
 }
 
 .vocab-tooltip-pin.is-pinned svg {
@@ -126,6 +234,12 @@
   user-select: none;
 }
 
+.vocab-tooltip-close:hover {
+  color: var(--vt-text-strong);
+  background: var(--vt-hover-strong);
+}
+
+/* Content scroll */
 .vocab-tooltip-content {
   overflow-y: auto;
   max-height: calc(100% - 28px);
@@ -134,6 +248,22 @@
   margin-right: -12px;
 }
 
+.vocab-tooltip-content::-webkit-scrollbar {
+  width: 5px;
+}
+.vocab-tooltip-content::-webkit-scrollbar-track {
+  background: var(--vt-scroll-track);
+  border-radius: 3px;
+}
+.vocab-tooltip-content::-webkit-scrollbar-thumb {
+  background: var(--vt-scroll-thumb);
+  border-radius: 3px;
+}
+.vocab-tooltip-content::-webkit-scrollbar-thumb:hover {
+  background: var(--vt-scroll-thumb-hover);
+}
+
+/* Resize handles */
 .vocab-tooltip-resize-handle {
   position: absolute;
   z-index: 2147483647;
@@ -147,15 +277,8 @@
   height: 8px;
 }
 
-.vocab-tooltip-resize-handle.handle-n {
-  top: -4px;
-  cursor: ns-resize;
-}
-
-.vocab-tooltip-resize-handle.handle-s {
-  bottom: -4px;
-  cursor: ns-resize;
-}
+.vocab-tooltip-resize-handle.handle-n { top: -4px; cursor: ns-resize; }
+.vocab-tooltip-resize-handle.handle-s { bottom: -4px; cursor: ns-resize; }
 
 .vocab-tooltip-resize-handle.handle-e,
 .vocab-tooltip-resize-handle.handle-w {
@@ -164,15 +287,8 @@
   width: 8px;
 }
 
-.vocab-tooltip-resize-handle.handle-e {
-  right: -4px;
-  cursor: ew-resize;
-}
-
-.vocab-tooltip-resize-handle.handle-w {
-  left: -4px;
-  cursor: ew-resize;
-}
+.vocab-tooltip-resize-handle.handle-e { right: -4px; cursor: ew-resize; }
+.vocab-tooltip-resize-handle.handle-w { left: -4px; cursor: ew-resize; }
 
 .vocab-tooltip-resize-handle.handle-ne,
 .vocab-tooltip-resize-handle.handle-nw,
@@ -182,119 +298,113 @@
   height: 12px;
 }
 
-.vocab-tooltip-resize-handle.handle-ne {
-  top: -4px;
-  right: -4px;
-  cursor: nesw-resize;
-}
+.vocab-tooltip-resize-handle.handle-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.vocab-tooltip-resize-handle.handle-nw { top: -4px; left: -4px; cursor: nwse-resize; }
+.vocab-tooltip-resize-handle.handle-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+.vocab-tooltip-resize-handle.handle-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
 
-.vocab-tooltip-resize-handle.handle-nw {
-  top: -4px;
-  left: -4px;
-  cursor: nwse-resize;
-}
+/* Item */
+.vocab-tooltip .vocab-item { margin-bottom: 8px; }
+.vocab-tooltip .vocab-item:last-child { margin-bottom: 0; }
 
-.vocab-tooltip-resize-handle.handle-se {
-  bottom: -4px;
-  right: -4px;
-  cursor: nwse-resize;
-}
-
-.vocab-tooltip-resize-handle.handle-sw {
-  bottom: -4px;
-  left: -4px;
-  cursor: nesw-resize;
-}
-
-/* 滚动条样式 */
-.vocab-tooltip-content::-webkit-scrollbar {
-  width: 5px;
-}
-
-.vocab-tooltip-content::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.vocab-tooltip-content::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 3px;
-}
-
-.vocab-tooltip-content::-webkit-scrollbar-thumb:hover {
-  background: #999;
-}
-
-
-/* 提示框显示在上方的情况 */
-.vocab-tooltip.show-above {
-  margin-bottom: 0;
-}
-
-.vocab-tooltip-close {
-  z-index: 2147483647;
-}
-
-.vocab-tooltip-close:hover {
-  color: #333;
-  background: rgba(0, 0, 0, 0.12);
-}
-
-.vocab-item {
-  margin-bottom: 8px;
-}
-
-.vocab-item:last-child {
-  margin-bottom: 0;
-}
-
-.vocab-word {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--vocab-highlight-color);
+/* Word row */
+.vocab-tooltip .vocab-word-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 6px;
 }
 
-.vocab-search-btn {
-  margin-left: 2px;
-  padding: 2px;
-  border-radius: 4px;
-  background: transparent;
-  color: #111;
-  border: 1px solid #111;
+.vocab-tooltip .vocab-word-main {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.vocab-tooltip .vocab-word {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--vocab-highlight-color);
+  margin: 0;
+  display: inline-block;
+  line-height: 1;
+}
+
+/* Buttons */
+.vocab-tooltip .vocab-search-btn,
+.vocab-tooltip .vocab-action-btn {
+  all: unset;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
   width: 18px;
   height: 18px;
+  padding: 2px;
+
+  border-radius: 4px;
+  border: 1px solid currentColor;
+
+  color: var(--vt-icon);
+  background: transparent;
+
+  cursor: pointer;
   text-decoration: none;
-  line-height: 1.2;
+  line-height: 1;
 }
 
-.vocab-search-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
+.vocab-tooltip .vocab-search-btn:hover,
+.vocab-tooltip .vocab-action-btn:hover {
+  background: var(--vt-hover);
 }
 
-@media (prefers-color-scheme: dark) {
-  .vocab-search-btn {
-    color: #fff;
-    border-color: #fff;
-  }
-  .vocab-search-btn:hover {
-    background: rgba(255, 255, 255, 0.12);
-  }
+.vocab-tooltip .vocab-action-btn:disabled,
+.vocab-tooltip .vocab-action-btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
-.vocab-search-icon {
-  width: 14px;
-  height: 14px;
+/* Icons */
+.vocab-tooltip .vocab-search-icon,
+.vocab-tooltip .vocab-action-icon {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+
+.vocab-tooltip .vocab-search-icon {
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 1.5;
   fill: none;
 }
 
-.vocab-type {
-  display: inline-block;
+.vocab-tooltip .vocab-action-icon {
+  fill: currentColor;
+}
+
+/* Trash = red */
+.vocab-tooltip .vocab-action-btn.vocab-block-btn,
+.vocab-tooltip .vocab-block-btn {
+  color: var(--vt-danger);
+}
+
+/* Favorite active */
+.vocab-tooltip .vocab-favorite-btn.is-active {
+  background: var(--vt-fav-bg);
+  border-color: var(--vt-fav-border);
+  color: var(--vt-fav-text);
+}
+
+/* Type label */
+.vocab-tooltip .vocab-type {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
   background: var(--vocab-highlight-bg-strong);
   color: var(--vocab-highlight-color);
   padding: 2px 6px;
@@ -304,133 +414,62 @@
   font-weight: normal;
 }
 
-.vocab-type-small {
-  color: #999;
+.vocab-tooltip .vocab-type-small {
+  color: var(--vt-muted-2);
   font-size: 12px;
   margin-left: 4px;
 }
 
-.vocab-translations {
+.vocab-tooltip .vocab-translations {
   margin: 6px 0;
   padding-left: 4px;
 }
 
-.vocab-translations div {
+.vocab-tooltip .vocab-translations div {
   margin: 4px 0;
-  color: #555;
+  color: var(--vt-muted);
 }
 
-.vocab-divider {
+.vocab-tooltip .vocab-divider {
   border: none;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--vt-divider);
   margin: 10px 0;
 }
 
-/* 短语部分 */
-.vocab-phrases-toggle {
-  all: unset;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 600;
-  color: #666;
-  margin-top: 8px;
-  margin-bottom: 4px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.vocab-phrases-toggle::after {
-  content: "▶";
+/* Sources */
+.vocab-tooltip .vocab-sources {
   font-size: 11px;
-  color: #999;
-}
-
-.vocab-phrases-toggle[aria-expanded="true"]::after {
-  content: "▼";
-}
-
-.vocab-phrases {
-  display: none;
-  padding-left: 4px;
-}
-
-.vocab-phrases.is-open {
-  display: block;
-}
-
-.vocab-phrase {
-  margin: 6px 0;
-  padding: 6px 8px;
-  background: #f5f5f5;
-  border-radius: 4px;
-}
-
-.vocab-phrase-text {
-  font-weight: 500;
-  color: #444;
-  margin-bottom: 2px;
-}
-
-.vocab-phrase-trans {
-  font-size: 13px;
-  color: #666;
-}
-
-/* 词库来源样式 */
-.vocab-sources {
-  font-size: 11px;
-  color: #999;
+  color: var(--vt-muted-2);
   margin-bottom: 8px;
   padding: 2px 0;
-  border-bottom: 1px dashed #e0e0e0;
+  border-bottom: 1px dashed var(--vt-divider);
 }
 
-.vocab-trans-item {
+.vocab-tooltip .vocab-trans-item {
   margin: 6px 0;
-  color: #555;
+  color: var(--vt-muted);
   line-height: 1.5;
 }
 
-.vocab-trans-item .vocab-type {
+.vocab-tooltip .vocab-trans-item .vocab-type {
   margin-left: 0;
   margin-right: 6px;
 }
 
-.vocab-type-sources {
+.vocab-tooltip .vocab-type-sources {
   font-size: 10px;
-  color: #aaa;
+  color: var(--vt-muted-2);
   margin-left: 4px;
 }
 
-.vocab-phrase-sources {
+.vocab-tooltip .vocab-phrase-sources {
   font-size: 10px;
-  color: #aaa;
+  color: var(--vt-muted-2);
   margin-top: 2px;
 }
 
-/* 单词行样式（包含推测词性） */
-.vocab-word-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.vocab-word-main {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-}
-
-.vocab-word-row .vocab-word {
-  margin-bottom: 0;
-}
-
-/* 推测词性标签 */
-.vocab-inferred-pos {
+/* Inferred POS */
+.vocab-tooltip .vocab-inferred-pos {
   display: inline-block;
   background: #fff3cd;
   color: #856404;
@@ -441,15 +480,28 @@
   font-weight: 600;
   cursor: help;
   flex-shrink: 0;
+  line-height: 1;
 }
 
-.vocab-inferred-pos:hover {
+.vocab-tooltip .vocab-inferred-pos:hover {
   background: #ffc107;
   color: #000;
 }
 
-/* 匹配的词性高亮 */
-.vocab-trans-matched {
+@media (prefers-color-scheme: dark) {
+  .vocab-tooltip .vocab-inferred-pos {
+    background: #3a2f0a;
+    color: #ffdd88;
+    border-color: #b98b1f;
+  }
+  .vocab-tooltip .vocab-inferred-pos:hover {
+    background: #b98b1f;
+    color: #1b1b1b;
+  }
+}
+
+/* Matched highlight */
+.vocab-tooltip .vocab-trans-matched {
   background: rgba(255, 193, 7, 0.15);
   border-left: 3px solid #ffc107;
   padding-left: 8px;
@@ -458,95 +510,96 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --vocab-highlight-color: #7fb7ff;
-    --vocab-highlight-bg: rgba(127, 183, 255, 0.18);
-    --vocab-highlight-bg-strong: rgba(127, 183, 255, 0.28);
-  }
-
-  .vocab-tooltip {
-    background: #1e1f22;
-    border-color: #3a3a3a;
-    color: #e6e6e6;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
-  }
-
-  .vocab-tooltip::after {
-    background: #2f2f2f;
-  }
-
-  .vocab-tooltip-pin,
-  .vocab-tooltip-close {
-    color: #b0b0b0;
-  }
-
-  .vocab-tooltip-pin.is-pinned {
-    color: #ffffff;
-  }
-
-  .vocab-tooltip-close:hover {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.12);
-  }
-
-  .vocab-tooltip-content::-webkit-scrollbar-track {
-    background: #2b2b2b;
-  }
-
-  .vocab-tooltip-content::-webkit-scrollbar-thumb {
-    background: #555;
-  }
-
-  .vocab-tooltip-content::-webkit-scrollbar-thumb:hover {
-    background: #6b6b6b;
-  }
-
-  .vocab-type-small,
-  .vocab-sources,
-  .vocab-type-sources,
-  .vocab-phrase-sources {
-    color: #9aa0a6;
-  }
-
-  .vocab-translations div,
-  .vocab-trans-item,
-  .vocab-phrase-trans {
-    color: #cfcfcf;
-  }
-
-  .vocab-divider {
-    border-top-color: #2f2f2f;
-  }
-
-  .vocab-phrases-toggle {
-    color: #cfcfcf;
-  }
-
-  .vocab-phrases-toggle::after {
-    color: #9aa0a6;
-  }
-
-  .vocab-phrase {
-    background: #2a2b2f;
-  }
-
-  .vocab-phrase-text {
-    color: #e6e6e6;
-  }
-
-  .vocab-inferred-pos {
-    background: #3a2f0a;
-    color: #ffdd88;
-    border-color: #b98b1f;
-  }
-
-  .vocab-inferred-pos:hover {
-    background: #b98b1f;
-    color: #1b1b1b;
-  }
-
-  .vocab-trans-matched {
-    background: rgba(255, 193, 7, 0.2);
+  .vocab-tooltip .vocab-trans-matched {
+    background: rgba(255, 193, 7, 0.20);
     border-left-color: #ffc107;
   }
+}
+
+/* Phrases */
+.vocab-tooltip .vocab-phrases-toggle {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--vt-muted);
+  margin-top: 8px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.vocab-tooltip .vocab-phrases-toggle::after {
+  content: "▶";
+  font-size: 11px;
+  color: var(--vt-muted-2);
+}
+
+.vocab-tooltip .vocab-phrases-toggle[aria-expanded="true"]::after {
+  content: "▼";
+}
+
+.vocab-tooltip .vocab-phrases {
+  display: none;
+  padding-left: 4px;
+}
+
+.vocab-tooltip .vocab-phrases.is-open {
+  display: block;
+}
+
+.vocab-tooltip .vocab-phrase {
+  margin: 6px 0;
+  padding: 10px 10px;
+
+  /* 关键：永远用变量（暗色就是深色变量） */
+  background: var(--vt-phrase-bg);
+  border: 1px solid var(--vt-phrase-border);
+  border-radius: 8px;
+
+  box-shadow:
+          0 0 0 1px var(--vt-phrase-outline),
+          0 6px 14px rgba(0, 0, 0, 0.06);
+}
+
+.vocab-tooltip .vocab-phrase:hover,
+.vocab-tooltip .vocab-phrase:focus-within {
+  box-shadow:
+          0 0 0 2px var(--vt-phrase-outline-strong),
+          0 10px 22px rgba(0, 0, 0, 0.10);
+}
+
+.vocab-tooltip .vocab-phrase-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.vocab-tooltip .vocab-phrase-text {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  color: var(--vt-text);
+  margin-bottom: 0;
+}
+
+.vocab-tooltip .vocab-phrase-trans {
+  font-size: 13px;
+  color: var(--vt-muted);
+}
+
+.vocab-tooltip .vocab-phrase-search {
+  flex: 0 0 auto;
+}
+
+/* A11y focus */
+.vocab-tooltip .vocab-search-btn:focus-visible,
+.vocab-tooltip .vocab-action-btn:focus-visible,
+.vocab-tooltip .vocab-tooltip-pin:focus-visible,
+.vocab-tooltip .vocab-tooltip-close:focus-visible,
+.vocab-tooltip .vocab-phrases-toggle:focus-visible {
+  outline: 2px solid rgba(33, 150, 243, 0.6);
+  outline-offset: 2px;
 }

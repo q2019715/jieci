@@ -123,6 +123,8 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 // 保持 service worker 活跃（如果需要）
 
 // Jieba wasm loader runs in the extension context to avoid page CSP/COEP issues.
+const JIEBA_ERROR_UNAVAILABLE = 'jieba-unavailable';
+const JIEBA_ERROR_FAILED = 'jieba-failed';
 let jiebaModule = null;
 let jiebaReady = null;
 
@@ -152,57 +154,49 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
-  // 处理分词请求
   if (message.type === 'jieba-tokenize') {
-    if (typeof message.text !== 'string' || message.text.length === 0) {
-      sendResponse({ ok: true, tokens: [] });
-      return true;
-    }
-
-    (async () => {
-      const mod = await ensureJiebaReady();
-      if (!mod) {
-        sendResponse({ ok: false, error: 'jieba-unavailable' });
-        return;
-      }
-      try {
-        const tokens = mod.tokenize(message.text, 'default', true);
-        sendResponse({ ok: true, tokens });
-      } catch (error) {
-        console.error('jieba tokenize failed:', error);
-        sendResponse({ ok: false, error: 'jieba-failed' });
-      }
-    })();
-
-    return true;
+    return handleJiebaRequest(
+      message,
+      sendResponse,
+      (mod, text) => mod.tokenize(text, 'default', true),
+      'tokens'
+    );
   }
 
-  // 处理词性标注请求
   if (message.type === 'jieba-tag') {
-    if (typeof message.text !== 'string' || message.text.length === 0) {
-      sendResponse({ ok: true, tags: [] });
-      return true;
-    }
-
-    (async () => {
-      const mod = await ensureJiebaReady();
-      if (!mod) {
-        sendResponse({ ok: false, error: 'jieba-unavailable' });
-        return;
-      }
-      try {
-        const tags = mod.tag(message.text, true);
-        sendResponse({ ok: true, tags });
-      } catch (error) {
-        console.error('jieba tag failed:', error);
-        sendResponse({ ok: false, error: 'jieba-failed' });
-      }
-    })();
-
-    return true;
+    return handleJiebaRequest(
+      message,
+      sendResponse,
+      (mod, text) => mod.tag(text, true),
+      'tags'
+    );
   }
 
   return false;
 });
+
+function handleJiebaRequest(message, sendResponse, execute, resultKey) {
+  if (typeof message.text !== 'string' || message.text.length === 0) {
+    sendResponse({ ok: true, [resultKey]: [] });
+    return true;
+  }
+
+  (async () => {
+    const mod = await ensureJiebaReady();
+    if (!mod) {
+      sendResponse({ ok: false, error: JIEBA_ERROR_UNAVAILABLE });
+      return;
+    }
+    try {
+      const result = execute(mod, message.text);
+      sendResponse({ ok: true, [resultKey]: result });
+    } catch (error) {
+      console.error('[jieba]', message.type, 'failed:', error);
+      sendResponse({ ok: false, error: JIEBA_ERROR_FAILED });
+    }
+  })();
+
+  return true;
+}
 
 // SPA navigation is handled inside the page (content script) to avoid webNavigation permission.

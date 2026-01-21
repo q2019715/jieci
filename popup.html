@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -14,6 +14,7 @@
       <div class="oobe-text" id="oobeText1"></div>
       <button id="oobeNext1" class="btn btn-primary oobe-primary">Start</button>
     </div>
+
     <div class="oobe-step" data-step="2">
       <div class="oobe-title" id="oobeTitle2">Download</div>
       <div class="oobe-text" id="oobeText2"></div>
@@ -27,6 +28,7 @@
         <button id="oobeNext2" class="btn btn-primary oobe-primary">Continue</button>
       </div>
     </div>
+
     <div class="oobe-step" data-step="3">
       <div class="oobe-title" id="oobeTitle3">Done</div>
       <div class="oobe-text" id="oobeText3"></div>
@@ -37,16 +39,17 @@
     </div>
   </div>
 </div>
+
 <div class="container">
   <div class="page is-active" id="pageMain">
     <h1 id="titleLink">截词英语学习助手</h1>
 
     <div class="control-section">
       <label class="setting-label">
-        <span class="label-text">显示模式</span>
+        <span class="label-text">插件工作模式</span>
         <button class="help-icon" type="button" aria-label="帮助">
           ?
-          <span class="help-tooltip">这个选项控制插件改写内容的模式。关闭代表不会改写内容；下划线模式下插件会在匹配的单次下面画下划线，您可以将鼠标放到对应的单词上面查看单词详情；标注模式下插件不仅会在对应单词下画下划线，并且会将对应外文放在右侧括号中</span>
+          <span class="help-tooltip">这个选项控制插件改写内容的模式。关闭代表不会改写内容；下划线模式下插件会在匹配的单词下面画下划线，您可以将鼠标放到对应的单词上面查看单词详情；标注模式下插件不仅会在对应单词下画下划线，并且会将对应外文放在右侧括号中</span>
         </button>
       </label>
       <div class="mode-slider-container">
@@ -62,78 +65,62 @@
       </div>
     </div>
 
-    <div class="control-section">
-      <label class="setting-label">
-        <span class="label-text">标注模式</span>
-        <button class="help-icon" type="button" aria-label="帮助">
-          ?
-          <span class="help-tooltip">这里配置插件是将中文改写为英文还是英文改写为中文，自动模式下插件会自行进行选择</span>
-        </button>
-      </label>
-      <div class="mode-slider-container">
-        <input type="range" id="annotationModeSlider" min="0" max="2" step="1" value="1">
-        <div class="mode-slider-track">
-          <div class="mode-slider-thumb"></div>
-        </div>
-        <div class="mode-labels">
-          <span class="mode-label" data-mode="0">中→英</span>
-          <span class="mode-label" data-mode="1">自动</span>
-          <span class="mode-label" data-mode="2">英→中</span>
-        </div>
-      </div>
-    </div>
+
 
     <div class="control-section">
       <label class="setting-label">
-        <span class="label-text">智能去重</span>
+        <span class="label-text">想让插件不标注此网站？</span>
         <button class="help-icon" type="button" aria-label="帮助">
           ?
-          <span class="help-tooltip">这个选项用来控制一个单词出现的频率。关闭状态下插件不会控制一个页面上某个单词被标注的次数；单网页内不重复会让一个单词在一个网页中只被标记一次；一定次数内不重复会让一个单词被标注了一次后一定次数内不会被再次标注（具体次数可以在高级设置中进行配置）</span>
+          <span class="help-tooltip">点击右侧 以后不再标注此网站"按钮，即可让插件在此网站上禁用。如果您改变了主意，您可以点击 ：“此网站已禁用标记，点此取消”按钮，将禁用规则给删掉</span>
         </button>
       </label>
-      <div class="mode-slider-container">
-        <input type="range" id="dedupeModeSlider" min="0" max="2" step="1" value="1">
-        <div class="mode-slider-track">
-          <div class="mode-slider-thumb"></div>
-        </div>
-        <div class="mode-labels">
-          <span class="mode-label" data-mode="0">关闭</span>
-          <span class="mode-label" data-mode="1">单网页内不重复</span>
-          <span class="mode-label" data-mode="2">一定次数内不重复</span>
-        </div>
-      </div>
+      <button id="blockSiteBtn" class="btn btn-secondary" type="button">以后不再标注此网站</button>
     </div>
 
-    <div class="stats-section stats-inline">
-      <div class="stat-item">
-        <span class="stat-label setting-label">
-          <span class="label-text">总词条数</span>
-          <button class="help-icon" type="button" aria-label="帮助">
-              ?
-              <span class="help-tooltip">已导入词库的总词条数（去重）</span>
-          </button>
+
+    <div class="quick-grid">
+      <button id="quickFavorites" class="quick-tile" type="button">
+        <span class="quick-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="img" focusable="false">
+            <path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.47L12 17.9l-5.8 3.47 1.11-6.47-4.7-4.58 6.49-.94L12 2.5z"></path>
+          </svg>
         </span>
-        <span id="totalWords" class="stat-value">0</span>
-      </div>
-
+        <span class="quick-title">收藏的单词</span>
+        <span class="quick-subtitle">查看与管理收藏的单词</span>
+      </button>
+      <button id="quickBlocked" class="quick-tile" type="button">
+        <span class="quick-icon" aria-hidden="true">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.41 0 8 3.59 8 8 0 1.85-.63 3.55-1.69 4.9z"/>
+</svg>
+        </span>
+        <span class="quick-title">屏蔽的单词</span>
+        <span class="quick-subtitle">查看和管理已经屏蔽的单词</span>
+      </button>
+      <button id="quickVocab" class="quick-tile" type="button">
+        <span class="quick-icon" aria-hidden="true">
+<svg viewBox="0 0 24 24" role="img" focusable="false" fill="currentColor">
+  <path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H6zm0 2h12v16H6V4z"/>
+  <path d="M9 4v7l1.5-1.2L12 11V4H9z"/>
+  <rect x="7" y="14" width="8" height="1.5" rx="0.5"/>
+  <rect x="7" y="17" width="5" height="1.5" rx="0.5"/>
+</svg>
+        </span>
+        <span class="quick-title">词库管理</span>
+        <span class="quick-subtitle">导入/下载/管理词库</span>
+      </button>
+      <button id="quickSettings" class="quick-tile" type="button">
+        <span class="quick-icon" aria-hidden="true">
+<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <!-- 外部齿轮 -->
+  <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.49.37 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z"/>
+</svg>
+        </span>
+        <span class="quick-title">设置</span>
+        <span class="quick-subtitle">调整插件的各项设置</span>
+      </button>
     </div>
-
-    <div class="settings-section nav-section">
-      <div class="settings-header" id="vocabularyToggle">
-        <h2>
-          <span class="label-text">词库管理</span>
-        </h2>
-        <span class="toggle-icon">▶</span>
-      </div>
-    </div>
-
-    <div class="settings-section nav-section">
-      <div class="settings-header" id="advancedToggle">
-        <h2>高级设置</h2>
-        <span class="toggle-icon">▶</span>
-      </div>
-    </div>
-
   </div>
 
   <div class="page" id="pageVocab">
@@ -146,10 +133,10 @@
       <div class="settings-content" id="vocabularyContent">
         <div class="import-controls">
           <input type="file" id="fileInput" accept=".json" multiple style="display: none;">
-          <button id="importBtn" class="btn btn-primary">选择文件</button>
-          <button id="downloadBtn" class="btn btn-secondary">从服务器下载</button>
-          <span id="importStatus" class="import-status"></span>
+          <button id="downloadBtn" class="btn btn-primary">从服务器下载（下载我们整理好的词库）</button>
+          <button id="importBtn" class="btn btn-secondary">从本地导入</button>
         </div>
+        <span id="importStatus" class="import-status"></span>
         <div id="filesList" class="files-list"></div>
       </div>
     </div>
@@ -158,25 +145,42 @@
   <div class="page" id="pageAdvanced">
     <div class="page-header">
       <button class="page-back-btn" id="advancedBack" type="button" aria-label="返回">←</button>
-      <div class="page-title">高级设置</div>
+      <div class="page-title">插件设置</div>
     </div>
-    <div class="settings-section nav-section">
-      <div class="settings-header" id="styleNav">
-        <h2>样式设置</h2>
-        <span class="toggle-icon">▶</span>
-      </div>
-    </div>
-    <div class="settings-section nav-section">
-      <div class="settings-header" id="annotationNav">
-        <h2>标注设置</h2>
-        <span class="toggle-icon">▶</span>
-      </div>
-    </div>
-    <div class="settings-section nav-section">
-      <div class="settings-header" id="aboutNav">
-        <h2>关于</h2>
-        <span class="toggle-icon">▶</span>
-      </div>
+
+    <div class="settings-list">
+      <button class="settings-row" id="styleNav" type="button">
+        <span class="row-title">插件样式设置</span>
+        <span class="row-arrow" aria-hidden="true">›</span>
+      </button>
+      <button class="settings-row" id="annotationNav" type="button">
+        <span class="row-title">标注设置</span>
+        <span class="row-arrow" aria-hidden="true">›</span>
+      </button>
+      <button class="settings-row" id="searchNav" type="button">
+        <span class="row-title">一键查词功能设置</span>
+        <span class="row-arrow" aria-hidden="true">›</span>
+      </button>
+      <button class="settings-row" id="vocabularyNav" type="button">
+        <span class="row-title">词库管理</span>
+        <span class="row-arrow" aria-hidden="true">›</span>
+      </button>
+      <button class="settings-row" id="blockedNav" type="button">
+        <span class="row-title">已屏蔽的单词</span>
+        <span class="row-arrow" aria-hidden="true">›</span>
+      </button>
+      <button class="settings-row" id="favoritesNav" type="button">
+        <span class="row-title">收藏的单词</span>
+        <span class="row-arrow" aria-hidden="true">›</span>
+      </button>
+      <button class="settings-row" id="siteBlockNav" type="button">
+        <span class="row-title">屏蔽的网站</span>
+        <span class="row-arrow" aria-hidden="true">›</span>
+      </button>
+      <button class="settings-row" id="aboutNav" type="button">
+        <span class="row-title">关于</span>
+        <span class="row-arrow" aria-hidden="true">›</span>
+      </button>
     </div>
   </div>
 
@@ -186,8 +190,8 @@
       <div class="page-title">样式设置</div>
     </div>
     <div class="settings-section">
-      <div class="settings-content">
-        <div class="setting-item">
+      <div class="settings-content settings-list">
+        <div class="setting-item stacked">
           <label for="highlightMode" class="setting-label">
             <span class="label-text">标注颜色</span>
             <button class="help-icon" type="button" aria-label="帮助">
@@ -225,8 +229,50 @@
       <div class="page-title">标注设置</div>
     </div>
     <div class="settings-section">
-      <div class="settings-content">
-        <div class="setting-item">
+      <div class="settings-content settings-list">
+        <div class="setting-item mode-setting">
+          <label class="setting-label">
+            <span class="label-text">标注模式</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip">这里配置插件是将中文改写为英文还是英文改写为中文，自动模式下插件会自行进行选择</span>
+            </button>
+          </label>
+          <div class="mode-slider-container">
+            <input type="range" id="annotationModeSlider" min="0" max="2" step="1" value="1">
+            <div class="mode-slider-track">
+              <div class="mode-slider-thumb"></div>
+            </div>
+            <div class="mode-labels">
+              <span class="mode-label" data-mode="0">中→英</span>
+              <span class="mode-label" data-mode="1">自动</span>
+              <span class="mode-label" data-mode="2">英→中</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item mode-setting">
+          <label class="setting-label">
+            <span class="label-text">智能去重</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip">这个选项用来控制一个单词出现的频率。关闭状态下插件不会控制一个页面上某个单词被标注的次数；单网页内不重复会让一个单词在一个网页中只被标记一次；一定次数内不重复会让一个单词被标注了一次后一定次数内不会被再次标注（具体次数可以在高级设置中进行配置）</span>
+            </button>
+          </label>
+          <div class="mode-slider-container">
+            <input type="range" id="dedupeModeSlider" min="0" max="2" step="1" value="1">
+            <div class="mode-slider-track">
+              <div class="mode-slider-thumb"></div>
+            </div>
+            <div class="mode-labels">
+              <span class="mode-label" data-mode="0">关闭</span>
+              <span class="mode-label" data-mode="1">单网页内不重复</span>
+              <span class="mode-label" data-mode="2">一定次数内不重复</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item stacked">
           <label for="maxMatchesSlider" class="setting-label">
             <span class="label-text">单句标注上限</span>
             <button class="help-icon" type="button" aria-label="帮助">
@@ -240,6 +286,7 @@
             <input type="number" id="maxMatchesInput" min="0" value="3">
           </div>
         </div>
+
         <div class="setting-item smart-toggle-row">
           <div class="setting-main">
             <label for="smartSkipCodeLinks" class="setting-label">
@@ -255,7 +302,8 @@
             </label>
           </div>
         </div>
-        <div class="setting-item">
+
+        <div class="setting-item stacked">
           <label for="minTextLength" class="setting-label">
             <span class="label-text">容器最小字数</span>
             <button class="help-icon" type="button" aria-label="帮助">
@@ -268,12 +316,13 @@
             <span id="minTextLengthLabel" class="range-label">10</span>
           </div>
         </div>
-        <div class="setting-item">
+
+        <div class="setting-item stacked">
           <label for="dedupeRepeatCount" class="setting-label">
             <span class="label-text">去重间隔次数</span>
             <button class="help-icon" type="button" aria-label="帮助">
               ?
-              <span class="help-tooltip">仅在“一定次数内不重复”模式下生效，一个单词背标记后多少次才能再次出现</span>
+              <span class="help-tooltip">仅在“一定次数内不重复”模式下生效，一个单词被标记后多少次才能再次出现</span>
             </button>
           </label>
           <div class="range-row">
@@ -281,6 +330,7 @@
             <span id="dedupeRepeatCountLabel" class="range-label">50</span>
           </div>
         </div>
+
         <div class="setting-item">
           <label for="clearDedupeCounts" class="setting-label">
             <span class="label-text">删除单词次数统计</span>
@@ -295,13 +345,135 @@
     </div>
   </div>
 
+  <div class="page" id="pageSearch">
+    <div class="page-header">
+      <button class="page-back-btn" id="searchBack" type="button" aria-label="返回">←</button>
+      <div class="page-title">一键查词功能设置</div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-content settings-list">
+        <div class="setting-item">
+          <label for="searchProviderSelect" class="setting-label">
+            <span class="label-text">默认查词网页</span>
+          </label>
+          <button class="help-icon" type="button" aria-label="帮助">
+            ?
+            <span class="help-tooltip">用于设置点击单词卡片一键查词跳转的站点</span>
+          </button>
+          <select id="searchProviderSelect">
+            <option value="youdao">有道词典</option>
+            <option value="bing">必应词典</option>
+            <option value="cambridge">剑桥在线词典</option>
+            <option value="collins">柯林斯在线词典</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="pageBlocked">
+    <div class="page-header">
+      <button class="page-back-btn" id="blockedBack" type="button" aria-label="返回">←</button>
+      <div class="page-title">已屏蔽的单词</div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-content">
+        <div class="word-tip" role="note" aria-live="polite">
+          <span class="word-tip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.75V18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.25A7 7 0 0 0 12 2zm3 11.65-1 .58V17h-4v-2.77l-1-.58A5 5 0 1 1 15 13.65z"/>
+            </svg>
+          </span>
+          <span class="word-tip-text">这里储存了在插件中屏蔽的单词。<br>您可以点击单词小卡片中的垃圾桶按钮对某个单词进行屏蔽</span>
+        </div>
+        <div class="word-toolbar">
+          <button id="blockedSelectAll" class="btn btn-secondary" type="button">全选</button>
+          <button id="blockedDeleteSelected" class="btn btn-delete" type="button" disabled>删除选中</button>
+          <div class="word-search">
+            <input id="blockedSearchInput" type="text" placeholder="搜索已屏蔽词" aria-label="搜索已屏蔽词">
+          </div>
+        </div>
+        <div id="blockedList" class="words-list"></div>
+        <div class="word-io">
+          <button id="blockedImportBtn" class="btn btn-secondary" type="button">导入</button>
+          <button id="blockedExportBtn" class="btn btn-secondary" type="button">导出</button>
+          <input id="blockedImportInput" type="file" accept=".txt" style="display: none;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="pageFavorites">
+    <div class="page-header">
+      <button class="page-back-btn" id="favoritesBack" type="button" aria-label="返回">←</button>
+      <div class="page-title">收藏的单词</div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-content">
+        <div class="word-tip" role="note" aria-live="polite">
+          <span class="word-tip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.75V18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.25A7 7 0 0 0 12 2zm3 11.65-1 .58V17h-4v-2.77l-1-.58A5 5 0 1 1 15 13.65z"/>
+            </svg>
+          </span>
+          <span class="word-tip-text">可以在这里查看与管理自己已收藏的词。<br>您可以通过点击单词小卡片中的☆标识收藏单词。<br>如果您想要将收藏的词导出到别的软件（如不背单词）<br>您可以参照<a target="_blank" rel="noopener noreferrer" href="https://jieci.top/export_favorite_word.html" >这个</a>文档 </span>
+        </div>
+        <div class="word-toolbar">
+          <button id="favoritesSelectAll" class="btn btn-secondary" type="button">全选</button>
+          <button id="favoritesDeleteSelected" class="btn btn-delete" type="button" disabled>删除选中</button>
+          <div class="word-search">
+            <input id="favoritesSearchInput" type="text" placeholder="搜索收藏的词" aria-label="搜索收藏的单词">
+          </div>
+        </div>
+        <div id="favoritesList" class="words-list"></div>
+        <div class="word-io">
+          <button id="favoritesImportBtn" class="btn btn-secondary" type="button">导入</button>
+          <button id="favoritesExportBtn" class="btn btn-secondary" type="button">导出</button>
+          <input id="favoritesImportInput" type="file" accept=".txt" style="display: none;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="pageSiteBlock">
+    <div class="page-header">
+      <button class="page-back-btn" id="siteBlockBack" type="button" aria-label="返回">←</button>
+      <div class="page-title">网站黑名单</div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-content">
+        <div class="word-tip" role="note" aria-live="polite">
+          <span class="word-tip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.75V18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.25A7 7 0 0 0 12 2zm3 11.65-1 .58V17h-4v-2.77l-1-.58A5 5 0 1 1 15 13.65z"/>
+            </svg>
+          </span>
+          <span class="word-tip-text">可以配置在哪些网站上,站点不进行工作</span>
+        </div>
+        <div class="word-toolbar">
+          <button id="siteBlockSelectAll" class="btn btn-secondary" type="button">全选</button>
+          <button id="siteBlockDeleteSelected" class="btn btn-delete" type="button" disabled>删除选中</button>
+          <div class="word-search">
+            <input id="siteBlockSearchInput" type="text" placeholder="搜索黑名单网站" aria-label="搜索黑名单网站">
+          </div>
+        </div>
+        <div id="siteBlockList" class="words-list"></div>
+        <div class="word-io">
+          <button id="siteBlockImportBtn" class="btn btn-secondary" type="button">导入</button>
+          <button id="siteBlockExportBtn" class="btn btn-secondary" type="button">导出</button>
+          <input id="siteBlockImportInput" type="file" accept=".txt" style="display: none;">
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="pageAbout">
     <div class="page-header">
       <button class="page-back-btn" id="aboutBack" type="button" aria-label="返回">←</button>
       <div class="page-title">关于</div>
     </div>
     <div class="settings-section">
-      <div class="settings-content">
+      <div class="settings-content settings-list">
         <div class="setting-item">
           <label class="setting-label">
             <span class="label-text">版本号</span>
@@ -331,7 +503,7 @@
           <label class="setting-label">
             <span class="label-text">帮助文档</span>
           </label>
-          <a class="setting-link" href="http://jieci.top/help.html" target="_blank" rel="noopener noreferrer">查看</a>
+          <a class="setting-link" href="https://jieci.top/help.html" target="_blank" rel="noopener noreferrer">查看</a>
         </div>
       </div>
     </div>
@@ -355,13 +527,14 @@
           <div class="progress-bar-bg">
             <div class="progress-bar-fill" id="progressBar"></div>
           </div>
+          <div class="download-actions">
+            <button id="downloadErrorOk" class="btn btn-primary" type="button" style="display: none;">确定</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
-  <div class="help-link">
-    <a href="http://jieci.top/help.html" target="_blank" rel="noopener noreferrer">点此查看帮助文档</a>
-  </div>
+
 
 </div>
 
