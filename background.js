@@ -72,6 +72,11 @@ chrome.runtime.onInstalled.addListener(async () => {
     'maxMatchesPerNode',
     'minTextLength',
     'annotationMode',
+    'cnToEnOrder',
+    'enToCnOrder',
+    'disableAnnotationUnderline',
+    'disableAnnotationTooltip',
+    'speechVoiceURI',
     'highlightColorMode',
     'highlightColor'
   ]);
@@ -102,6 +107,26 @@ chrome.runtime.onInstalled.addListener(async () => {
 
   if (!result.annotationMode) {
     await chrome.storage.local.set({ annotationMode: 'auto' });
+  }
+
+  if (result.speechVoiceURI === undefined) {
+    await chrome.storage.local.set({ speechVoiceURI: '' });
+  }
+
+  if (!result.cnToEnOrder) {
+    await chrome.storage.local.set({ cnToEnOrder: 'source-first' });
+  }
+
+  if (!result.enToCnOrder) {
+    await chrome.storage.local.set({ enToCnOrder: 'source-first' });
+  }
+
+  if (result.disableAnnotationUnderline === undefined) {
+    await chrome.storage.local.set({ disableAnnotationUnderline: false });
+  }
+
+  if (result.disableAnnotationTooltip === undefined) {
+    await chrome.storage.local.set({ disableAnnotationTooltip: false });
   }
 
   if (!result.highlightColorMode) {

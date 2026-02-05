@@ -122,6 +122,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const importBtn = document.getElementById('importBtn');
     const fileInput = document.getElementById('fileInput');
     const importStatus = document.getElementById('importStatus');
+    const updateProgress = document.getElementById('updateProgress');
+    const updateProgressLabel = document.getElementById('updateProgressLabel');
+    const updateProgressPercent = document.getElementById('updateProgressPercent');
+    const updateProgressBar = document.getElementById('updateProgressBar');
+    const updateOverall = document.getElementById('updateOverall');
+    const updateOverallLabel = document.getElementById('updateOverallLabel');
+    const updateOverallPercent = document.getElementById('updateOverallPercent');
+    const updateOverallBar = document.getElementById('updateOverallBar');
+    const updateModal = document.getElementById('updateModal');
+    const updateModalClose = document.getElementById('updateModalClose');
+    const updateCancelBtn = document.getElementById('updateCancelBtn');
+    const updateRetryBtn = document.getElementById('updateRetryBtn');
     const filesList = document.getElementById('filesList');
     const fileCount = document.getElementById('fileCount');
     const maxMatchesSlider = document.getElementById('maxMatchesSlider');
@@ -134,6 +146,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const clearDedupeCountsButton = document.getElementById('clearDedupeCounts');
     const highlightModeSelect = document.getElementById('highlightMode');
     const highlightColorInput = document.getElementById('highlightColor');
+    const cnToEnOrderSelect = document.getElementById('cnToEnOrder');
+    const enToCnOrderSelect = document.getElementById('enToCnOrder');
+    const disableAnnotationUnderlineToggle = document.getElementById('disableAnnotationUnderline');
+    const disableAnnotationTooltipToggle = document.getElementById('disableAnnotationTooltip');
+    const speechVoiceSelect = document.getElementById('speechVoiceSelect');
     const searchProviderSelect = document.getElementById('searchProviderSelect');
     const blockedSearchInput = document.getElementById('blockedSearchInput');
     const blockedSelectAll = document.getElementById('blockedSelectAll');
@@ -158,7 +175,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const siteBlockImportInput = document.getElementById('siteBlockImportInput');
     const smartSkipCodeLinksToggle = document.getElementById('smartSkipCodeLinks');
     const resetPopupSizeButton = document.getElementById('resetPopupSize');
-    const resetPopupSizeStatus = document.getElementById('resetPopupSizeStatus');
     const blockSiteBtn = document.getElementById('blockSiteBtn');
     const quickFavorites = document.getElementById('quickFavorites');
     const quickBlocked = document.getElementById('quickBlocked');
@@ -167,8 +183,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     let vocabEntrySource = 'advanced';
     let favoritesEntrySource = 'advanced';
     let blockedEntrySource = 'advanced';
+    let updateAbortXhr = null;
+    let updateCancelRequested = false;
+    let updateInProgress = false;
+    let updateModalCloseTimer = null;
+    let lastUpdateAction = null;
     // 下载相关元素
     const downloadBtn = document.getElementById('downloadBtn');
+    const updateAllBtn = document.getElementById('updateAllBtn');
     const downloadModal = document.getElementById('downloadModal');
     const modalClose = document.getElementById('modalClose');
     const loadingSpinner = document.getElementById('loadingSpinner');
@@ -311,6 +333,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const name = document.createElement('div');
             name.className = 'oobe-vocab-name';
             name.textContent = vocab && vocab.name ? vocab.name : '未命名词库';
+            const fileActions = document.createElement('div');
+            fileActions.className = 'file-actions';
+            const updateButton = document.createElement('button');
+            updateButton.className = 'btn btn-secondary';
+            updateButton.textContent = '更新';
             const deleteButton = document.createElement('button');
             deleteButton.type = 'button';
             deleteButton.className = 'oobe-vocab-delete';
@@ -1132,6 +1159,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             enabled: enabled
         });
     });
+    if (disableAnnotationUnderlineToggle) {
+        disableAnnotationUnderlineToggle.addEventListener('change', async () => {
+            const disabled = disableAnnotationUnderlineToggle.checked;
+            await chrome.storage.local.set({disableAnnotationUnderline: disabled});
+            await notifyActiveTabs({
+                action: 'updateAnnotationUnderline',
+                disabled: disabled
+            });
+        });
+    }
+    if (disableAnnotationTooltipToggle) {
+        disableAnnotationTooltipToggle.addEventListener('change', async () => {
+            const disabled = disableAnnotationTooltipToggle.checked;
+            await chrome.storage.local.set({disableAnnotationTooltip: disabled});
+            await notifyActiveTabs({
+                action: 'updateAnnotationTooltip',
+                disabled: disabled
+            });
+        });
+    }
     const debugModeToggle = document.getElementById('debugMode');
     debugModeToggle.addEventListener('change', async () => {
         const enabled = debugModeToggle.checked;
@@ -1180,6 +1227,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     highlightColorInput.addEventListener('change', () => {
         saveHighlightSettings(highlightModeSelect.value, highlightColorInput.value);
     });
+    const saveAnnotationOrderSettings = async () => {
+        if (!cnToEnOrderSelect || !enToCnOrderSelect) {
+            return;
+        }
+        const cnToEnOrder = cnToEnOrderSelect.value;
+        const enToCnOrder = enToCnOrderSelect.value;
+        await chrome.storage.local.set({
+            cnToEnOrder,
+            enToCnOrder
+        });
+        await notifyActiveTabs({
+            action: 'updateAnnotationOrder',
+            cnToEnOrder,
+            enToCnOrder
+        });
+    };
+    if (cnToEnOrderSelect) {
+        cnToEnOrderSelect.addEventListener('change', saveAnnotationOrderSettings);
+    }
+    if (enToCnOrderSelect) {
+        enToCnOrderSelect.addEventListener('change', saveAnnotationOrderSettings);
+    }
     if (searchProviderSelect) {
         searchProviderSelect.addEventListener('change', async () => {
             const provider = searchProviderSelect.value;
@@ -1189,6 +1258,49 @@ document.addEventListener('DOMContentLoaded', async () => {
                 provider: provider
             });
         });
+    }
+    const renderSpeechVoiceOptions = () => {
+        if (!speechVoiceSelect || typeof speechSynthesis === 'undefined') {
+            return;
+        }
+        const voices = speechSynthesis.getVoices();
+        const selectedValue = speechVoiceSelect.dataset.selectedValue || '';
+        speechVoiceSelect.replaceChildren();
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = '系统默认';
+        speechVoiceSelect.appendChild(defaultOption);
+        voices.forEach((voice) => {
+            const option = document.createElement('option');
+            option.value = voice.voiceURI;
+            option.textContent = `${voice.name} (${voice.lang})`;
+            if (voice.localService) {
+                option.textContent += ' - 本地';
+            }
+            speechVoiceSelect.appendChild(option);
+        });
+        speechVoiceSelect.value = selectedValue;
+        if (speechVoiceSelect.value !== selectedValue) {
+            speechVoiceSelect.value = '';
+        }
+    };
+    const saveSpeechVoiceSetting = async () => {
+        if (!speechVoiceSelect) {
+            return;
+        }
+        const speechVoiceURI = speechVoiceSelect.value || '';
+        await chrome.storage.local.set({speechVoiceURI});
+        await notifyActiveTabs({
+            action: 'updateSpeechVoice',
+            speechVoiceURI
+        });
+    };
+    if (speechVoiceSelect) {
+        speechVoiceSelect.addEventListener('change', saveSpeechVoiceSetting);
+        renderSpeechVoiceOptions();
+        if (typeof speechSynthesis !== 'undefined') {
+            speechSynthesis.addEventListener('voiceschanged', renderSpeechVoiceOptions);
+        }
     }
     if (blockedSearchInput) {
         blockedSearchInput.addEventListener('input', () => {
@@ -1430,6 +1542,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     downloadBtn.addEventListener('click', async () => {
         openDownloadModal();
     });
+    if (updateAllBtn) {
+        updateAllBtn.addEventListener('click', async () => {
+            await startUpdateAll();
+        });
+    }
     // 关闭模态框
     modalClose.addEventListener('click', () => {
         closeDownloadModal();
@@ -1442,6 +1559,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     if (downloadErrorOk) {
         downloadErrorOk.addEventListener('click', closeDownloadModal);
+    }
+    if (updateModalClose) {
+        updateModalClose.addEventListener('click', requestUpdateCancel);
+    }
+    if (updateCancelBtn) {
+        updateCancelBtn.addEventListener('click', requestUpdateCancel);
+    }
+    if (updateRetryBtn) {
+        updateRetryBtn.addEventListener('click', async () => {
+            if (!lastUpdateAction) {
+                return;
+            }
+            if (lastUpdateAction.type === 'all') {
+                await startUpdateAll();
+            } else if (lastUpdateAction.type === 'single') {
+                await startUpdateSingle(lastUpdateAction.vocabId);
+            }
+        });
+    }
+    if (updateModal) {
+        updateModal.addEventListener('click', (e) => {
+            if (e.target === updateModal) {
+                requestUpdateCancel();
+            }
+        });
     }
 
     // 打开下载模态框
@@ -1457,7 +1599,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const response = await fetch(`${SERVER_URL}/dict/index.json`);
             if (!response.ok) {
-                throw new Error('获取词库列表失败');
+                loadingSpinner.textContent = '加载失败: 获取词库列表失败';
+                console.error('获取词库列表失败:', response.status);
+                return;
             }
             const dictionaries = await response.json();
             loadingSpinner.style.display = 'none';
@@ -1551,46 +1695,63 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
             };
+            const handleDownloadError = (message, error) => {
+                downloadingDict.textContent = `下载失败: ${message}`;
+                progressPercent.textContent = '';
+                if (error) {
+                    console.error('下载词库失败:', error);
+                }
+                setTimeout(() => {
+                    closeDownloadModal();
+                }, 2000);
+            };
             xhr.onload = async () => {
-                if (xhr.status === 200) {
-                    try {
-                        const data = JSON.parse(xhr.responseText);
-                        if (!Array.isArray(data)) {
-                            throw new Error('词库格式不正确');
-                        }
-                        // 导入词库
-                        const vocabularies = await chrome.storage.local.get('vocabularies') || {};
-                        let vocabList = vocabularies.vocabularies || [];
-                        vocabList.push({
-                            id: generateId(),
-                            name: dict.name,
-                            uploadTime: new Date().toISOString(),
-                            wordCount: data.length,
-                            data: data
-                        });
-                        await chrome.storage.local.set({vocabularies: vocabList});
-                        // 构建并缓存Trie树索引
-                        console.log('构建Trie树索引...');
-                        const trieIndex = buildChineseTrieIndex(vocabList);
-                        await chrome.storage.local.set({vocabularyTrieIndex: trieIndex});
-                        console.log('Trie树索引构建完成');
-                        progressPercent.textContent = '100%';
-                        progressBar.style.width = '100%';
+                if (xhr.status !== 200) {
+                    handleDownloadError(`下载失败 (HTTP ${xhr.status})`);
+                    return;
+                }
+                let data = null;
+                try {
+                    data = JSON.parse(xhr.responseText);
+                } catch (error) {
+                    handleDownloadError('词库解析失败: ' + error.message, error);
+                    return;
+                }
+                if (!Array.isArray(data)) {
+                    handleDownloadError('词库格式不正确');
+                    return;
+                }
+                try {
+                    // 导入词库
+                    const vocabularies = await chrome.storage.local.get('vocabularies') || {};
+                    let vocabList = vocabularies.vocabularies || [];
+                    vocabList.push({
+                        id: generateId(),
+                        name: dict.name,
+                        uploadTime: new Date().toISOString(),
+                        wordCount: data.length,
+                        data: data
+                    });
+                    await chrome.storage.local.set({vocabularies: vocabList});
+                    // 构建并缓存Trie树索引
+                    console.log('构建Trie树索引...');
+                    const trieIndex = buildChineseTrieIndex(vocabList);
+                    await chrome.storage.local.set({vocabularyTrieIndex: trieIndex});
+                    console.log('Trie树索引构建完成');
+                    progressPercent.textContent = '100%';
+                    progressBar.style.width = '100%';
+                    setTimeout(() => {
+                        closeDownloadModal();
+                        loadSettings();
+                        notifyContentScripts();
+                        importStatus.textContent = `成功下载并导入 ${dict.name}`;
+                        importStatus.className = 'import-status success';
                         setTimeout(() => {
-                            closeDownloadModal();
-                            loadSettings();
-                            notifyContentScripts();
-                            importStatus.textContent = `成功下载并导入 ${dict.name}`;
-                            importStatus.className = 'import-status success';
-                            setTimeout(() => {
-                                importStatus.textContent = '';
-                            }, 3000);
-                        }, 500);
-                    } catch (error) {
-                        throw new Error('词库解析失败: ' + error.message);
-                    }
-                } else {
-                    throw new Error(`下载失败 (HTTP ${xhr.status})`);
+                            importStatus.textContent = '';
+                        }, 3000);
+                    }, 500);
+                } catch (error) {
+                    handleDownloadError(error.message, error);
                 }
             };
             xhr.onerror = () => {
@@ -1611,7 +1772,538 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function normalizeDictName(name) {
+        return (name || '').trim();
+    }
+
+    function openUpdateModal() {
+        if (!updateModal) {
+            return;
+        }
+        updateModal.classList.add('show');
+        if (updateModalCloseTimer) {
+            clearTimeout(updateModalCloseTimer);
+            updateModalCloseTimer = null;
+        }
+        if (updateRetryBtn) {
+            updateRetryBtn.style.display = 'none';
+        }
+        if (updateCancelBtn) {
+            updateCancelBtn.disabled = false;
+        }
+        setUpdateProgressVisible(true);
+        updateCurrentProgress('更新进度', 0);
+        if (updateOverall) {
+            updateOverall.style.display = 'none';
+        }
+    }
+
+    function shouldAutoCloseUpdateModal() {
+        return !updateRetryBtn || updateRetryBtn.style.display === 'none';
+    }
+
+    function closeUpdateModal() {
+        if (!updateModal) {
+            return;
+        }
+        updateModal.classList.remove('show');
+    }
+
+    function scheduleUpdateModalClose(delayMs) {
+        if (!updateModal) {
+            return;
+        }
+        if (updateModalCloseTimer) {
+            clearTimeout(updateModalCloseTimer);
+        }
+        updateModalCloseTimer = setTimeout(() => {
+            setUpdateProgressVisible(false);
+            closeUpdateModal();
+        }, delayMs);
+    }
+
+    function createCancelError() {
+        const error = new Error('已取消');
+        error.isCanceled = true;
+        return error;
+    }
+
+    function requestUpdateCancel() {
+        if (!updateInProgress) {
+            closeUpdateModal();
+            return;
+        }
+        updateCancelRequested = true;
+        if (updateAbortXhr) {
+            updateAbortXhr.abort();
+        }
+        if (updateCancelBtn) {
+            updateCancelBtn.disabled = true;
+        }
+        updateCurrentProgress('已取消', 0);
+        if (updateRetryBtn) {
+            updateRetryBtn.style.display = 'inline-flex';
+        }
+        importStatus.textContent = '已取消更新';
+        importStatus.className = 'import-status error';
+        scheduleUpdateModalClose(3000);
+    }
+
+    function setUpdateProgressVisible(visible) {
+        if (!updateProgress) {
+            return;
+        }
+        updateProgress.style.display = visible ? 'block' : 'none';
+        if (!visible && updateOverall) {
+            updateOverall.style.display = 'none';
+        }
+    }
+
+    function updateCurrentProgress(label, percent) {
+        if (!updateProgressLabel || !updateProgressPercent || !updateProgressBar) {
+            return;
+        }
+        if (percent >= 100) {
+            updateProgressLabel.textContent = '正在合并词库 请稍后';
+        } else {
+            updateProgressLabel.textContent = label;
+        }
+        updateProgressPercent.textContent = `${percent}%`;
+        updateProgressBar.style.width = `${percent}%`;
+    }
+
+    function calculateOverallPercent(processedCount, totalCount, currentPercent) {
+        const safeTotal = Math.max(1, Number(totalCount) || 0);
+        const safeProcessed = Math.max(0, Number(processedCount) || 0);
+        const safePercent = Math.max(0, Math.min(100, Number(currentPercent) || 0));
+        const combined = (safeProcessed + safePercent / 100) / safeTotal;
+        return Math.round(Math.min(1, Math.max(0, combined)) * 100);
+    }
+
+    function updateOverallProgress(label, percent) {
+        if (!updateOverall || !updateOverallLabel || !updateOverallPercent || !updateOverallBar) {
+            return;
+        }
+        updateOverall.style.display = 'block';
+        updateOverallLabel.textContent = label;
+        updateOverallPercent.textContent = `${percent}%`;
+        updateOverallBar.style.width = `${percent}%`;
+    }
+
+    async function fetchServerDictionaryIndex() {
+        const response = await fetch(`${SERVER_URL}/dict/index.json`, {
+            cache: 'no-store'
+        });
+        if (!response.ok) {
+            return Promise.reject(new Error(`获取词库列表失败 (HTTP ${response.status})`));
+        }
+        const dictionaries = await response.json();
+        if (!Array.isArray(dictionaries)) {
+            return Promise.reject(new Error('词库列表格式不正确'));
+        }
+        return dictionaries;
+    }
+
+    function findServerDictByName(dictionaries, name) {
+        const target = normalizeDictName(name);
+        return dictionaries.find((dict) => normalizeDictName(dict.name) === target);
+    }
+
+    async function fetchDictionaryData(dict, onProgress) {
+        const cacheBust = `t=${Date.now()}`;
+        const url = `${SERVER_URL}/dict/${dict.filename || dict.name}?${cacheBust}`;
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            updateAbortXhr = xhr;
+            xhr.open('GET', url, true);
+            xhr.responseType = 'text';
+            xhr.onprogress = (event) => {
+                const total = event.lengthComputable ? event.total : (dict.size || 0);
+                if (total > 0 && typeof onProgress === 'function') {
+                    const rawPercent = Math.round((event.loaded / total) * 100);
+                    const percent = Math.min(99, Math.max(0, rawPercent));
+                    onProgress(percent);
+                }
+            };
+            xhr.onload = () => {
+                updateAbortXhr = null;
+                if (xhr.status !== 200) {
+                    reject(new Error(`下载失败 (HTTP ${xhr.status})`));
+                    return;
+                }
+                let data = null;
+                try {
+                    data = JSON.parse(xhr.responseText);
+                } catch (error) {
+                    reject(new Error('词库解析失败: ' + error.message));
+                    return;
+                }
+                if (!Array.isArray(data)) {
+                    reject(new Error('词库格式不正确'));
+                    return;
+                }
+                if (typeof onProgress === 'function') {
+                    onProgress(100);
+                }
+                resolve(data);
+            };
+            xhr.onerror = () => {
+                updateAbortXhr = null;
+                reject(new Error('下载失败，请检查网络连接'));
+            };
+            xhr.onabort = () => {
+                updateAbortXhr = null;
+                reject(createCancelError());
+            };
+            xhr.send();
+        });
+    }
+
+    async function updateVocabularyEntry(vocabList, vocab, dict, onProgress) {
+        const data = await fetchDictionaryData(dict, onProgress);
+        const index = vocabList.findIndex(item => item.id === vocab.id);
+        if (index === -1) {
+            return Promise.reject(new Error('本地词库不存在'));
+        }
+        vocabList[index] = {
+            ...vocabList[index],
+            name: dict.name || vocabList[index].name,
+            uploadTime: new Date().toISOString(),
+            wordCount: data.length,
+            data
+        };
+        return vocabList;
+    }
+
+    async function finalizeVocabulariesUpdate(vocabList) {
+        await chrome.storage.local.set({vocabularies: vocabList});
+        if (vocabList.length > 0) {
+            const trieIndex = buildChineseTrieIndex(vocabList);
+            await chrome.storage.local.set({vocabularyTrieIndex: trieIndex});
+        } else {
+            await chrome.storage.local.remove('vocabularyTrieIndex');
+        }
+        await loadSettings();
+        notifyContentScripts();
+    }
+
+    /*
+    async function updateAllVocabularies() {
+        if (!updateAllBtn) {
+            return;
+        }
+        updateAllBtn.disabled = true;
+        importStatus.textContent = '正在更新词库...';
+        importStatus.className = 'import-status importing';
+        setUpdateProgressVisible(true);
+        updateCurrentProgress('准备更新...', 0);
+        if (updateOverall) {
+            updateOverall.style.display = 'block';
+        }
+        try {
+            const dictionaries = await fetchServerDictionaryIndex();
+            const result = await chrome.storage.local.get('vocabularies');
+            let vocabList = result.vocabularies || [];
+            if (vocabList.length === 0) {
+                importStatus.textContent = '暂无可更新的本地词库';
+                importStatus.className = 'import-status error';
+                setUpdateProgressVisible(false);
+                return;
+            }
+            const failures = [];
+            let successCount = 0;
+            let processedCount = 0;
+            for (const vocab of vocabList) {
+                const dict = findServerDictByName(dictionaries, vocab.name);
+                if (!dict) {
+                    failures.push(`${vocab.name || '未命名词库'}: 服务器未找到`);
+                    processedCount += 1;
+                    updateOverallProgress(`总进度: ${processedCount}/${vocabList.length}`, Math.round((processedCount / vocabList.length) * 100));
+                    continue;
+                }
+                try {
+                    updateCurrentProgress(`更新中: ${dict.name || vocab.name || '未命名词库'}`, 0);
+                    vocabList = await updateVocabularyEntry(vocabList, vocab, dict, (percent) => {
+                        updateCurrentProgress(`更新中: ${dict.name || vocab.name || '未命名词库'}`, percent);
+                        updateOverallProgress(
+                            `总进度: ${processedCount}/${vocabList.length}`,
+                            calculateOverallPercent(processedCount, vocabList.length, percent)
+                        );
+                    });
+                    successCount += 1;
+                    importStatus.textContent = `正在更新词库... (${successCount}/${vocabList.length})`;
+                } catch (error) {
+                    failures.push(`${vocab.name || '未命名词库'}: ${error.message}`);
+                } finally {
+                    processedCount += 1;
+                    updateOverallProgress(`总进度: ${processedCount}/${vocabList.length}`, Math.round((processedCount / vocabList.length) * 100));
+                }
+            }
+            await finalizeVocabulariesUpdate(vocabList);
+            if (failures.length > 0) {
+                importStatus.textContent = `更新完成，成功 ${successCount}，失败 ${failures.length}: ${failures.join('；')}`;
+                importStatus.className = 'import-status error';
+            } else {
+                importStatus.textContent = `更新完成，成功 ${successCount}`;
+                importStatus.className = 'import-status success';
+            }
+        } catch (error) {
+            importStatus.textContent = '更新失败: ' + error.message;
+            importStatus.className = 'import-status error';
+        } finally {
+            updateAllBtn.disabled = false;
+            setTimeout(() => {
+                setUpdateProgressVisible(false);
+            }, 5000);
+        }
+    }
+
+    async function updateSingleVocabulary(vocab, updateButton) {
+        const originalText = updateButton.textContent;
+        updateButton.disabled = true;
+        updateButton.textContent = '更新中...';
+        if (updateAllBtn) {
+            updateAllBtn.disabled = true;
+        }
+        setUpdateProgressVisible(true);
+        if (updateOverall) {
+            updateOverall.style.display = 'none';
+        }
+        updateCurrentProgress(`更新中: ${vocab.name || '未命名词库'}`, 0);
+        importStatus.textContent = `正在更新: ${vocab.name || '未命名词库'}`;
+        importStatus.className = 'import-status importing';
+        try {
+            const dictionaries = await fetchServerDictionaryIndex();
+            const dict = findServerDictByName(dictionaries, vocab.name);
+            if (!dict) {
+                throw new Error('服务器未找到该词库');
+            }
+            const result = await chrome.storage.local.get('vocabularies');
+            let vocabList = result.vocabularies || [];
+            vocabList = await updateVocabularyEntry(vocabList, vocab, dict, (percent) => {
+                updateCurrentProgress(`更新中: ${dict.name || vocab.name || '未命名词库'}`, percent);
+            });
+            await finalizeVocabulariesUpdate(vocabList);
+            importStatus.textContent = `更新成功: ${dict.name || vocab.name || '未命名词库'}`;
+            importStatus.className = 'import-status success';
+        } catch (error) {
+            importStatus.textContent = '更新失败: ' + error.message;
+            importStatus.className = 'import-status error';
+        } finally {
+            updateButton.disabled = false;
+            updateButton.textContent = originalText;
+            if (updateAllBtn) {
+                updateAllBtn.disabled = false;
+            }
+            setTimeout(() => {
+                setUpdateProgressVisible(false);
+            }, 5000);
+        }
+    }
+
     // 格式化文件大小
+    */
+    async function startUpdateAll() {
+        lastUpdateAction = {type: 'all'};
+        updateCancelRequested = false;
+        openUpdateModal();
+        await updateAllVocabulariesNew();
+    }
+
+    async function startUpdateSingle(vocabId, updateButton) {
+        lastUpdateAction = {type: 'single', vocabId};
+        updateCancelRequested = false;
+        openUpdateModal();
+        await updateSingleVocabularyNew(vocabId, updateButton);
+    }
+
+    const showUpdateError = (message) => {
+        importStatus.textContent = message;
+        importStatus.className = 'import-status error';
+        if (updateRetryBtn) {
+            updateRetryBtn.style.display = 'inline-flex';
+        }
+    };
+
+    const showUpdateCanceled = () => {
+        showUpdateError('已取消更新');
+    };
+
+    async function updateAllVocabulariesNew() {
+        if (!updateAllBtn) {
+            return;
+        }
+        updateInProgress = true;
+        updateAllBtn.disabled = true;
+        importStatus.textContent = '正在更新词库...';
+        importStatus.className = 'import-status importing';
+        updateCurrentProgress('准备更新...', 0);
+        if (updateOverall) {
+            updateOverall.style.display = 'block';
+        }
+        if (updateRetryBtn) {
+            updateRetryBtn.style.display = 'none';
+        }
+        if (updateCancelBtn) {
+            updateCancelBtn.disabled = false;
+        }
+        try {
+            const dictionaries = await fetchServerDictionaryIndex();
+            const result = await chrome.storage.local.get('vocabularies');
+            let vocabList = result.vocabularies || [];
+            if (vocabList.length === 0) {
+                importStatus.textContent = '暂无可更新的本地词库';
+                importStatus.className = 'import-status error';
+                return;
+            }
+            const failures = [];
+            let successCount = 0;
+            let processedCount = 0;
+            for (const vocab of vocabList) {
+                if (updateCancelRequested) {
+                    showUpdateCanceled();
+                    return;
+                }
+                const dict = findServerDictByName(dictionaries, vocab.name);
+                if (!dict) {
+                    failures.push(`${vocab.name || '未命名词库'}: 服务器未找到`);
+                    processedCount += 1;
+                    updateOverallProgress(`总进度: ${processedCount}/${vocabList.length}`, Math.round((processedCount / vocabList.length) * 100));
+                    continue;
+                }
+                try {
+                    updateCurrentProgress(`更新中: ${dict.name || vocab.name || '未命名词库'}`, 0);
+                    vocabList = await updateVocabularyEntry(vocabList, vocab, dict, (percent) => {
+                        updateCurrentProgress(`更新中: ${dict.name || vocab.name || '未命名词库'}`, percent);
+                        updateOverallProgress(
+                            `总进度: ${processedCount}/${vocabList.length}`,
+                            calculateOverallPercent(processedCount, vocabList.length, percent)
+                        );
+                    });
+                    successCount += 1;
+                    importStatus.textContent = `正在更新词库... (${successCount}/${vocabList.length})`;
+                } catch (error) {
+                    if (error && error.isCanceled) {
+                        showUpdateCanceled();
+                        return;
+                    }
+                    failures.push(`${vocab.name || '未命名词库'}: ${error.message}`);
+                } finally {
+                    processedCount += 1;
+                    updateOverallProgress(`总进度: ${processedCount}/${vocabList.length}`, Math.round((processedCount / vocabList.length) * 100));
+                }
+            }
+            if (updateCancelRequested) {
+                showUpdateCanceled();
+                return;
+            }
+            await finalizeVocabulariesUpdate(vocabList);
+            if (failures.length > 0) {
+                importStatus.textContent = `更新完成，成功 ${successCount}，失败 ${failures.length}: ${failures.join('；')}`;
+                importStatus.className = 'import-status error';
+                if (updateRetryBtn) {
+                    updateRetryBtn.style.display = 'inline-flex';
+                }
+            } else {
+                importStatus.textContent = `更新完成，成功 ${successCount}`;
+                importStatus.className = 'import-status success';
+            }
+        } catch (error) {
+            if (error.isCanceled) {
+                importStatus.textContent = '已取消更新';
+                importStatus.className = 'import-status error';
+            } else {
+                importStatus.textContent = '更新失败: ' + error.message;
+                importStatus.className = 'import-status error';
+            }
+            if (updateRetryBtn) {
+                updateRetryBtn.style.display = 'inline-flex';
+            }
+        } finally {
+            updateAllBtn.disabled = false;
+            updateInProgress = false;
+            updateAbortXhr = null;
+            if (shouldAutoCloseUpdateModal()) {
+                scheduleUpdateModalClose(5000);
+            }
+        }
+    }
+
+    async function updateSingleVocabularyNew(vocabId, updateButton) {
+        const originalText = updateButton ? updateButton.textContent : '';
+        if (updateButton) {
+            updateButton.disabled = true;
+            updateButton.textContent = '更新中...';
+        }
+        updateInProgress = true;
+        if (updateAllBtn) {
+            updateAllBtn.disabled = true;
+        }
+        if (updateOverall) {
+            updateOverall.style.display = 'none';
+        }
+        if (updateRetryBtn) {
+            updateRetryBtn.style.display = 'none';
+        }
+        if (updateCancelBtn) {
+            updateCancelBtn.disabled = false;
+        }
+        updateCurrentProgress('更新中: ...', 0);
+        importStatus.textContent = '正在更新: ...';
+        importStatus.className = 'import-status importing';
+        try {
+            const dictionaries = await fetchServerDictionaryIndex();
+            const result = await chrome.storage.local.get('vocabularies');
+            let vocabList = result.vocabularies || [];
+            const vocab = vocabList.find(item => item.id === vocabId);
+            if (!vocab) {
+                showUpdateError('本地词库不存在');
+                return;
+            }
+            const dict = findServerDictByName(dictionaries, vocab.name);
+            if (!dict) {
+                showUpdateError('服务器未找到该词库');
+                return;
+            }
+            updateCurrentProgress(`更新中: ${dict.name || vocab.name || '未命名词库'}`, 0);
+            importStatus.textContent = `正在更新: ${dict.name || vocab.name || '未命名词库'}`;
+            vocabList = await updateVocabularyEntry(vocabList, vocab, dict, (percent) => {
+                updateCurrentProgress(`更新中: ${dict.name || vocab.name || '未命名词库'}`, percent);
+            });
+            if (updateCancelRequested) {
+                showUpdateCanceled();
+                return;
+            }
+            await finalizeVocabulariesUpdate(vocabList);
+            importStatus.textContent = `更新成功: ${dict.name || vocab.name || '未命名词库'}`;
+            importStatus.className = 'import-status success';
+        } catch (error) {
+            if (error.isCanceled) {
+                importStatus.textContent = '已取消更新';
+                importStatus.className = 'import-status error';
+            } else {
+                importStatus.textContent = '更新失败: ' + error.message;
+                importStatus.className = 'import-status error';
+            }
+            if (updateRetryBtn) {
+                updateRetryBtn.style.display = 'inline-flex';
+            }
+        } finally {
+            if (updateButton) {
+                updateButton.disabled = false;
+                updateButton.textContent = originalText;
+            }
+            if (updateAllBtn) {
+                updateAllBtn.disabled = false;
+            }
+            updateInProgress = false;
+            updateAbortXhr = null;
+            if (shouldAutoCloseUpdateModal()) {
+                scheduleUpdateModalClose(5000);
+            }
+        }
+    }
+
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 B';
         const k = 1024;
@@ -1633,7 +2325,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const content = await readFileAsText(file);
                 const data = JSON.parse(content);
                 if (!Array.isArray(data)) {
-                    throw new Error(file.name + ' 格式不正确');
+                    importStatus.textContent = '导入失败: ' + file.name + ' 格式不正确';
+                    importStatus.className = 'import-status error';
+                    fileInput.value = '';
+                    return;
                 }
                 vocabList.push({
                     id: generateId(),
@@ -1672,8 +2367,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             'annotationMode',
             'highlightColorMode',
             'highlightColor',
+            'cnToEnOrder',
+            'enToCnOrder',
+            'disableAnnotationUnderline',
+            'disableAnnotationTooltip',
             'smartSkipCodeLinks',
             'searchProvider',
+            'speechVoiceURI',
             'blockedWords',
             'favoriteWords',
             'siteBlockRules',
@@ -1692,8 +2392,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const annotationMode = result.annotationMode || 'auto';
         const highlightMode = result.highlightColorMode || 'none';
         const highlightColor = result.highlightColor || '#2196f3';
+        const cnToEnOrder = result.cnToEnOrder || 'source-first';
+        const enToCnOrder = result.enToCnOrder || 'source-first';
+        const disableAnnotationUnderline = result.disableAnnotationUnderline === true;
+        const disableAnnotationTooltip = result.disableAnnotationTooltip === true;
         const smartSkipCodeLinks = result.smartSkipCodeLinks !== false;
         const searchProvider = result.searchProvider || 'youdao';
+        const speechVoiceURI = result.speechVoiceURI || '';
         blockedWords = Array.isArray(result.blockedWords)
             ? result.blockedWords.map(normalizeWord).filter(Boolean)
             : [];
@@ -1736,10 +2441,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         dedupeRepeatCountLabel.textContent = dedupeRepeatCount;
         highlightModeSelect.value = highlightMode;
         highlightColorInput.value = highlightColor;
+        if (cnToEnOrderSelect) {
+            cnToEnOrderSelect.value = cnToEnOrder;
+        }
+        if (enToCnOrderSelect) {
+            enToCnOrderSelect.value = enToCnOrder;
+        }
+        if (disableAnnotationUnderlineToggle) {
+            disableAnnotationUnderlineToggle.checked = disableAnnotationUnderline;
+        }
+        if (disableAnnotationTooltipToggle) {
+            disableAnnotationTooltipToggle.checked = disableAnnotationTooltip;
+        }
         updateHighlightControls(highlightMode);
         smartSkipCodeLinksToggle.checked = smartSkipCodeLinks;
         if (searchProviderSelect) {
             searchProviderSelect.value = searchProvider;
+        }
+        if (speechVoiceSelect) {
+            speechVoiceSelect.dataset.selectedValue = speechVoiceURI;
         }
         if (blockedSearchInput) {
             blockedSearchInput.value = '';
@@ -1794,10 +2514,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             deleteButton.className = 'btn btn-delete';
             deleteButton.dataset.id = vocab.id;
             deleteButton.textContent = '删除';
+            const fileActions = document.createElement('div');
+            fileActions.className = 'file-actions';
+            const updateButton = document.createElement('button');
+            updateButton.className = 'btn btn-secondary';
+            updateButton.textContent = '更新';
+            updateButton.addEventListener('click', async () => {
+                await startUpdateSingle(vocab.id, updateButton);
+            });
             fileInfo.appendChild(fileName);
             fileInfo.appendChild(fileMeta);
             fileItem.appendChild(fileInfo);
-            fileItem.appendChild(deleteButton);
+            fileActions.appendChild(updateButton);
+            fileActions.appendChild(deleteButton);
+            fileItem.appendChild(fileActions);
             deleteButton.addEventListener('click', async () => {
                 deleteButton.disabled = true;
                 deleteButton.textContent = '删除中...';

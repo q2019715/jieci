@@ -5,6 +5,7 @@
 let displayMode = 'off'; // 显示模式：'off'、'underline'、'annotation'
 let searchProvider = 'youdao';
 let phrasesExpanded = false;
+let examplesExpanded = false;
 let blockedWordsSet = new Set();
 let favoriteWordsSet = new Set();
 let blockedWordsTrie = null;
@@ -20,6 +21,11 @@ let blockGroupCache = new WeakMap();
 let minTextLength = 10; // 容器最小字数，少于此数不添加标注
 let annotationMode = 'auto'; // 标注模式：'cn-to-en'、'auto'、'en-to-cn'
 let actualAnnotationMode = 'cn-to-en'; // 实际使用的标注模式（auto模式下自动检测）
+let cnToEnOrder = 'source-first';
+let enToCnOrder = 'source-first';
+let speechVoiceURI = '';
+let disableAnnotationUnderline = false;
+let disableAnnotationTooltip = false;
 let highlightColorMode = 'auto';
 let highlightColor = '#2196f3';
 let vocabularySet = new Set(); // 词汇集合，用于分词
@@ -45,6 +51,10 @@ let pendingAsyncCount = 0; // 追踪异步处理数量
 let finalLogTimer = null; // 延迟输出最终日志
 let spaRescanTimers = [];
 let scrollRescanTimer = null;
+let voicesReadyPromise = null;
+let currentSpeakText = '';
+let isSpeaking = false;
+let speakToken = 0;
 const SCROLL_RESCAN_DELAY_MS = 300;
 let diagSkipReasons = {quota: 0, minLength: 0, overflow: 0, noMatch: 0};
 let lastDiagReport = 0;
@@ -107,6 +117,36 @@ function mergeTranslations(existingData, newTranslations, sourceName) {
 }
 
 // 合并短语：去重，记录来源
+function mergePhonetics(existingPhonetics, newPhonetics) {
+    if (!newPhonetics || typeof newPhonetics !== 'object') return;
+    if (!existingPhonetics.uk && typeof newPhonetics.uk === 'string') {
+        existingPhonetics.uk = newPhonetics.uk;
+    }
+    if (!existingPhonetics.us && typeof newPhonetics.us === 'string') {
+        existingPhonetics.us = newPhonetics.us;
+    }
+}
+
+function mergeSentenceExamples(existingExamples, newExamples) {
+    if (!newExamples || !Array.isArray(newExamples)) return;
+    newExamples.forEach(example => {
+        if (!example || (!example.en && !example.zh)) {
+            return;
+        }
+        const en = typeof example.en === 'string' ? example.en : '';
+        const zh = typeof example.zh === 'string' ? example.zh : '';
+        const exists = existingExamples.some(item => {
+            if (en) {
+                return item.en === en;
+            }
+            return item.zh === zh;
+        });
+        if (!exists) {
+            existingExamples.push({en, zh});
+        }
+    });
+}
+
 function mergePhrases(existingPhrases, newPhrases, sourceName) {
     if (!newPhrases || !Array.isArray(newPhrases)) return;
     newPhrases.forEach(phrase => {
@@ -156,6 +196,8 @@ function createEmptyMergedData(word) {
         word: word,
         byType: {},           // { 'n': { type: 'n', meanings: [...], sources: [...] }, ... }
         phrases: [],          // [{ phrase, translations, sources }, ...]
+        phonetics: {uk: '', us: ''},
+        sentenceExamples: [],
         sources: [],          // 所有来源词库
         wordLength: word.length
     };
@@ -716,12 +758,26 @@ function parseCssColor(value) {
     }
 }
 
+function formatInlineAnnotation(sourceText, targetText, order) {
+    if (!targetText) {
+        return sourceText;
+    }
+    if (order === 'target-first') {
+        return `${targetText}(${sourceText})`;
+    }
+    return `${sourceText}(${targetText})`;
+}
+
 function createHighlightSpan(matchText, data, posTag = null) {
     if (isBlockedWord(matchText)) {
         return document.createTextNode(matchText);
     }
     const span = document.createElement('span');
     span.className = 'vocab-highlight';
+    span.dataset.originalText = matchText;
+    if (displayMode === 'annotation' && disableAnnotationUnderline) {
+        span.classList.add('vocab-no-underline');
+    }
     // 确定实际使用的标注模式
     const effectiveMode = annotationMode === 'auto' ? actualAnnotationMode : annotationMode;
     if (effectiveMode === 'cn-to-en' && data && isBlockedWord(data.word)) {
@@ -738,11 +794,11 @@ function createHighlightSpan(matchText, data, posTag = null) {
         // 标注模式：显示原文和括号
         if (effectiveMode === 'cn-to-en') {
             const englishWord = data.word;
-            span.textContent = `${matchText}(${englishWord})`;
+            span.textContent = formatInlineAnnotation(matchText, englishWord, cnToEnOrder);
         } else if (effectiveMode === 'en-to-cn') {
             // 从合并后的 byType 获取翻译，优先使用推断的词性
             const firstMeaning = getFirstMeaning(data, actualPOS);
-            span.textContent = firstMeaning ? `${matchText}(${firstMeaning})` : matchText;
+            span.textContent = formatInlineAnnotation(matchText, firstMeaning, enToCnOrder);
         }
     }
     // 保存 posTag 到 data 中，供 tooltip 使用
@@ -808,11 +864,14 @@ function createHighlightSpan(matchText, data, posTag = null) {
             hideGlobalTooltip();
         }, TOOLTIP_HIDE_DELAY_MS);
     };
-    span.addEventListener('mouseenter', showTooltip);
-    span.addEventListener('mouseleave', () => {
-        isHoveringHighlight = false;
-        scheduleHide();
-    });
+    const allowTooltip = !(displayMode === 'annotation' && disableAnnotationTooltip);
+    if (allowTooltip) {
+        span.addEventListener('mouseenter', showTooltip);
+        span.addEventListener('mouseleave', () => {
+            isHoveringHighlight = false;
+            scheduleHide();
+        });
+    }
     return span;
 }
 
@@ -1256,6 +1315,112 @@ function getSearchProviderConfig(word, provider) {
     return providers[provider] || providers.youdao;
 }
 
+function canSpeakWord() {
+    return typeof window !== 'undefined'
+        && 'speechSynthesis' in window
+        && typeof window.SpeechSynthesisUtterance === 'function';
+}
+
+function stopSpeaking() {
+    if (!canSpeakWord()) {
+        return;
+    }
+    window.speechSynthesis.cancel();
+    isSpeaking = false;
+    currentSpeakText = '';
+}
+
+function waitForVoices() {
+    if (!canSpeakWord()) {
+        return Promise.resolve();
+    }
+    if (window.speechSynthesis.getVoices().length > 0) {
+        return Promise.resolve();
+    }
+    if (voicesReadyPromise) {
+        return voicesReadyPromise;
+    }
+    voicesReadyPromise = new Promise((resolve) => {
+        let resolved = false;
+        const cleanup = () => {
+            if (resolved) return;
+            resolved = true;
+            if ('onvoiceschanged' in window.speechSynthesis) {
+                window.speechSynthesis.onvoiceschanged = null;
+            }
+            resolve();
+        };
+        if ('onvoiceschanged' in window.speechSynthesis) {
+            window.speechSynthesis.onvoiceschanged = () => {
+                cleanup();
+            };
+        }
+        setTimeout(cleanup, 400);
+    });
+    return voicesReadyPromise;
+}
+
+function getSpeakLang(text) {
+    if (!text) {
+        return 'en-US';
+    }
+    for (const ch of text) {
+        if (isChinese(ch)) {
+            return 'zh-CN';
+        }
+    }
+    return 'en-US';
+}
+
+async function speakWord(text) {
+    if (!canSpeakWord() || !text) {
+        return;
+    }
+    if (speechVoiceURI) {
+        await waitForVoices();
+    }
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = speechVoiceURI
+        ? voices.find((voice) => voice.voiceURI === speechVoiceURI)
+        : null;
+    const utterance = new SpeechSynthesisUtterance(text);
+    const token = ++speakToken;
+    currentSpeakText = text;
+    isSpeaking = true;
+    if (preferredVoice) {
+        utterance.voice = preferredVoice;
+        utterance.lang = preferredVoice.lang || getSpeakLang(text);
+    } else {
+        utterance.lang = getSpeakLang(text);
+    }
+    utterance.onend = () => {
+        if (token === speakToken) {
+            isSpeaking = false;
+            currentSpeakText = '';
+        }
+    };
+    utterance.onerror = () => {
+        if (token === speakToken) {
+            isSpeaking = false;
+            currentSpeakText = '';
+        }
+    };
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+}
+
+function toggleSpeak(text) {
+    if (!canSpeakWord() || !text) {
+        return;
+    }
+    const speaking = window.speechSynthesis.speaking || window.speechSynthesis.pending || isSpeaking;
+    if (speaking && currentSpeakText === text) {
+        stopSpeaking();
+        return;
+    }
+    speakWord(text);
+}
+
 function createTooltipContent(data, matchText) {
     if (!data) {
         return null;
@@ -1267,10 +1432,11 @@ function createTooltipContent(data, matchText) {
     wordRow.className = 'vocab-word-row';
     const wordMain = document.createElement('div');
     wordMain.className = 'vocab-word-main';
+    const rawWord = String(data.word || '').trim();
     const wordSpan = document.createElement('span');
     wordSpan.className = 'vocab-word';
-    wordSpan.textContent = data.word || '';
-    const searchConfig = getSearchProviderConfig(data.word || '', searchProvider);
+    wordSpan.textContent = rawWord;
+    const searchConfig = getSearchProviderConfig(rawWord, searchProvider);
     const searchLink = document.createElement('a');
     searchLink.className = 'vocab-search-btn';
     searchLink.href = searchConfig.url;
@@ -1278,7 +1444,7 @@ function createTooltipContent(data, matchText) {
     searchLink.rel = 'noopener noreferrer';
     searchLink.title = searchConfig.label;
     searchLink.setAttribute('aria-label', searchConfig.label);
-    searchLink.dataset.word = data.word || '';
+    searchLink.dataset.word = rawWord;
     const svgNs = 'http://www.w3.org/2000/svg';
     const searchSvg = document.createElementNS(svgNs, 'svg');
     searchSvg.classList.add('vocab-search-icon');
@@ -1297,7 +1463,7 @@ function createTooltipContent(data, matchText) {
     searchSvg.appendChild(searchCircle);
     searchSvg.appendChild(searchLine);
     searchLink.appendChild(searchSvg);
-    const normalizedWord = normalizeWord(data.word || '');
+    const normalizedWord = normalizeWord(rawWord);
     const blockButton = document.createElement('button');
     blockButton.className = 'vocab-action-btn vocab-block-btn';
     blockButton.type = 'button';
@@ -1335,6 +1501,22 @@ function createTooltipContent(data, matchText) {
     starPath.setAttribute('d', 'M12 3l2.9 6 6.6.9-4.8 4.4 1.2 6.5L12 17.8 6.1 20.8l1.2-6.5L2.5 9.9l6.6-.9L12 3z');
     starSvg.appendChild(starPath);
     favoriteButton.appendChild(starSvg);
+    const speakButton = document.createElement('button');
+    speakButton.className = 'vocab-action-btn vocab-speak-btn';
+    speakButton.type = 'button';
+    speakButton.title = '朗读该词';
+    speakButton.setAttribute('aria-label', '朗读该词');
+    if (!rawWord || !canSpeakWord()) {
+        speakButton.disabled = true;
+    }
+    const speakSvg = document.createElementNS(svgNs, 'svg');
+    speakSvg.classList.add('vocab-action-icon');
+    speakSvg.setAttribute('viewBox', '0 0 24 24');
+    speakSvg.setAttribute('aria-hidden', 'true');
+    const speakPath = document.createElementNS(svgNs, 'path');
+    speakPath.setAttribute('d', 'M3 9v6h4l5 4V5L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.25-3.9v7.8A4.5 4.5 0 0 0 16.5 12zm0-8a9 9 0 0 1 0 16v-2.1a6.9 6.9 0 0 0 0-11.8V4z');
+    speakSvg.appendChild(speakPath);
+    speakButton.appendChild(speakSvg);
     blockButton.addEventListener('click', async (event) => {
         event.stopPropagation();
         if (!normalizedWord || blockedWordsSet.has(normalizedWord)) {
@@ -1363,10 +1545,18 @@ function createTooltipContent(data, matchText) {
         }
         await persistFavoriteWords();
     });
+    speakButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (!rawWord) {
+            return;
+        }
+        toggleSpeak(rawWord);
+    });
     wordMain.appendChild(wordSpan);
     wordMain.appendChild(searchLink);
     wordMain.appendChild(blockButton);
     wordMain.appendChild(favoriteButton);
+    wordMain.appendChild(speakButton);
     wordRow.appendChild(wordMain);
     if (data._posTag) {
         const posTag = data._posTag;
@@ -1384,6 +1574,23 @@ function createTooltipContent(data, matchText) {
         }
     }
     container.appendChild(wordRow);
+    if (data.phonetics && (data.phonetics.uk || data.phonetics.us)) {
+        const phonetics = document.createElement('div');
+        phonetics.className = 'vocab-phonetics';
+        if (data.phonetics.uk) {
+            const ukSpan = document.createElement('span');
+            ukSpan.className = 'vocab-phonetic';
+            ukSpan.textContent = `UK ${data.phonetics.uk}`;
+            phonetics.appendChild(ukSpan);
+        }
+        if (data.phonetics.us) {
+            const usSpan = document.createElement('span');
+            usSpan.className = 'vocab-phonetic';
+            usSpan.textContent = `US ${data.phonetics.us}`;
+            phonetics.appendChild(usSpan);
+        }
+        container.appendChild(phonetics);
+    }
     if (data.sources && data.sources.length > 0) {
         const sources = document.createElement('div');
         sources.className = 'vocab-sources';
@@ -1485,8 +1692,32 @@ function createTooltipContent(data, matchText) {
             phraseSearchSvg.appendChild(phraseSearchCircle);
             phraseSearchSvg.appendChild(phraseSearchLine);
             phraseSearchLink.appendChild(phraseSearchSvg);
+            const phraseSpeakButton = document.createElement('button');
+            phraseSpeakButton.className = 'vocab-action-btn vocab-speak-btn';
+            phraseSpeakButton.type = 'button';
+            phraseSpeakButton.title = '朗读短语';
+            phraseSpeakButton.setAttribute('aria-label', '朗读短语');
+            if (!phrase.phrase || !canSpeakWord()) {
+                phraseSpeakButton.disabled = true;
+            }
+            const phraseSpeakSvg = document.createElementNS(svgNs, 'svg');
+            phraseSpeakSvg.classList.add('vocab-action-icon');
+            phraseSpeakSvg.setAttribute('viewBox', '0 0 24 24');
+            phraseSpeakSvg.setAttribute('aria-hidden', 'true');
+            const phraseSpeakPath = document.createElementNS(svgNs, 'path');
+            phraseSpeakPath.setAttribute('d', 'M3 9v6h4l5 4V5L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.25-3.9v7.8A4.5 4.5 0 0 0 16.5 12zm0-8a9 9 0 0 1 0 16v-2.1a6.9 6.9 0 0 0 0-11.8V4z');
+            phraseSpeakSvg.appendChild(phraseSpeakPath);
+            phraseSpeakButton.appendChild(phraseSpeakSvg);
+            phraseSpeakButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                if (!phrase.phrase) {
+                    return;
+                }
+                toggleSpeak(phrase.phrase);
+            });
             phraseRow.appendChild(phraseText);
             phraseRow.appendChild(phraseSearchLink);
+            phraseRow.appendChild(phraseSpeakButton);
             phraseItem.appendChild(phraseRow);
             if (phrase.translations && phrase.translations.length > 0) {
                 const phraseTrans = document.createElement('div');
@@ -1503,6 +1734,67 @@ function createTooltipContent(data, matchText) {
             phrases.appendChild(phraseItem);
         });
         container.appendChild(phrases);
+    }
+    if (Array.isArray(data.sentenceExamples) && data.sentenceExamples.length > 0) {
+        const toggle = document.createElement('button');
+        toggle.className = 'vocab-examples-toggle';
+        toggle.type = 'button';
+        toggle.setAttribute('aria-expanded', examplesExpanded ? 'true' : 'false');
+        toggle.textContent = '例句';
+        container.appendChild(toggle);
+        const examples = document.createElement('div');
+        examples.className = 'vocab-examples';
+        if (examplesExpanded) {
+            examples.classList.add('is-open');
+        }
+        data.sentenceExamples.forEach((example) => {
+            if (!example || (!example.en && !example.zh)) {
+                return;
+            }
+            const item = document.createElement('div');
+            item.className = 'vocab-example';
+            if (example.en) {
+                const enRow = document.createElement('div');
+                enRow.className = 'vocab-example-row';
+                const en = document.createElement('div');
+                en.className = 'vocab-example-en';
+                en.textContent = example.en;
+                const exampleSpeakButton = document.createElement('button');
+                exampleSpeakButton.className = 'vocab-action-btn vocab-example-speak';
+                exampleSpeakButton.type = 'button';
+                exampleSpeakButton.title = '朗读例句';
+                exampleSpeakButton.setAttribute('aria-label', '朗读例句');
+                if (!example.en || !canSpeakWord()) {
+                    exampleSpeakButton.disabled = true;
+                }
+                const exampleSpeakSvg = document.createElementNS(svgNs, 'svg');
+                exampleSpeakSvg.classList.add('vocab-action-icon');
+                exampleSpeakSvg.setAttribute('viewBox', '0 0 24 24');
+                exampleSpeakSvg.setAttribute('aria-hidden', 'true');
+                const exampleSpeakPath = document.createElementNS(svgNs, 'path');
+                exampleSpeakPath.setAttribute('d', 'M3 9v6h4l5 4V5L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.25-3.9v7.8A4.5 4.5 0 0 0 16.5 12zm0-8a9 9 0 0 1 0 16v-2.1a6.9 6.9 0 0 0 0-11.8V4z');
+                exampleSpeakSvg.appendChild(exampleSpeakPath);
+                exampleSpeakButton.appendChild(exampleSpeakSvg);
+                exampleSpeakButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    if (!example.en) {
+                        return;
+                    }
+                    toggleSpeak(example.en);
+                });
+                enRow.appendChild(en);
+                enRow.appendChild(exampleSpeakButton);
+                item.appendChild(enRow);
+            }
+            if (example.zh) {
+                const zh = document.createElement('div');
+                zh.className = 'vocab-example-zh';
+                zh.textContent = example.zh;
+                item.appendChild(zh);
+            }
+            examples.appendChild(item);
+        });
+        container.appendChild(examples);
     }
     return container;
 }
@@ -1761,6 +2053,24 @@ function getGlobalTooltip() {
                 phrasesExpanded = isOpen;
                 chrome.storage.local.set({phrasesExpanded: isOpen}).catch(() => {
                 });
+                if (event.detail > 0) {
+                    phrasesToggle.blur();
+                }
+            }
+            const examplesToggle = target.closest('.vocab-examples-toggle');
+            if (examplesToggle) {
+                const examplesBlock = examplesToggle.parentElement?.querySelector('.vocab-examples');
+                if (!examplesBlock) {
+                    return;
+                }
+                const isOpen = examplesBlock.classList.toggle('is-open');
+                examplesToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                examplesExpanded = isOpen;
+                chrome.storage.local.set({examplesExpanded: isOpen}).catch(() => {
+                });
+                if (event.detail > 0) {
+                    examplesToggle.blur();
+                }
             }
         });
         globalTooltip.addEventListener('mousedown', (event) => {
@@ -1918,6 +2228,7 @@ function hideGlobalTooltip(force = false) {
     tooltipDragOffset = null;
     tooltipManualPositioned = false;
     globalTooltipOwner = null;
+    stopSpeaking();
     isHoveringHighlight = false;
     isHoveringTooltip = false;
 }
@@ -2213,7 +2524,7 @@ function updateSiteBlockState() {
 // 加载设置
 async function loadSettings() {
     try {
-        const result = await chrome.storage.local.get(['displayMode', 'maxMatchesPerNode', 'minTextLength', 'annotationMode', 'highlightColorMode', 'highlightColor', 'smartSkipCodeLinks', 'searchProvider', 'phrasesExpanded', 'blockedWords', 'blockedWordsTrieIndex', 'favoriteWords', 'siteBlockRules', 'siteBlockIndex', 'dedupeMode', 'dedupeRepeatCount', 'dedupeCooldownSeconds', 'dedupeGlobalState', 'debugMode', TOOLTIP_SIZE_STORAGE_KEY]);
+        const result = await chrome.storage.local.get(['displayMode', 'maxMatchesPerNode', 'minTextLength', 'annotationMode', 'highlightColorMode', 'highlightColor', 'cnToEnOrder', 'enToCnOrder', 'disableAnnotationUnderline', 'disableAnnotationTooltip', 'speechVoiceURI', 'smartSkipCodeLinks', 'searchProvider', 'phrasesExpanded', 'examplesExpanded', 'blockedWords', 'blockedWordsTrieIndex', 'favoriteWords', 'siteBlockRules', 'siteBlockIndex', 'dedupeMode', 'dedupeRepeatCount', 'dedupeCooldownSeconds', 'dedupeGlobalState', 'debugMode', TOOLTIP_SIZE_STORAGE_KEY]);
         displayMode = result.displayMode || 'off';
         maxMatchesPerNode = normalizeMaxMatches(result.maxMatchesPerNode ?? maxMatchesPerNode);
         minTextLength = result.minTextLength ?? minTextLength;
@@ -2224,6 +2535,11 @@ async function loadSettings() {
             tooltipSize = {...TOOLTIP_SIZE_DEFAULT};
         }
         annotationMode = result.annotationMode || 'auto';
+        cnToEnOrder = result.cnToEnOrder || 'source-first';
+        enToCnOrder = result.enToCnOrder || 'source-first';
+        disableAnnotationUnderline = result.disableAnnotationUnderline === true;
+        disableAnnotationTooltip = result.disableAnnotationTooltip === true;
+        speechVoiceURI = result.speechVoiceURI || '';
         highlightColorMode = result.highlightColorMode ?? highlightColorMode;
         highlightColor = result.highlightColor ?? highlightColor;
         smartSkipCodeLinks = result.smartSkipCodeLinks !== false;
@@ -2252,6 +2568,7 @@ async function loadSettings() {
                 : []
         );
         phrasesExpanded = result.phrasesExpanded === true;
+        examplesExpanded = result.examplesExpanded === true;
         dedupeMode = result.dedupeMode || 'page';
         if (dedupeMode === 'cooldown') {
             dedupeMode = 'count';
@@ -2323,10 +2640,19 @@ async function loadVocabularies() {
                                 vocabularyMap.set(cleanChinese, createEmptyMergedData(word));
                             }
                             const mergedData = vocabularyMap.get(cleanChinese);
+                            const isSameWord = mergedData.word === word;
                             // 合并翻译（按词性分组）
-                            mergeTranslations(mergedData, item.translations, sourceName);
+                            if (isSameWord) {
+                                mergeTranslations(mergedData, item.translations, sourceName);
+                            }
+                            if (isSameWord) {
+                                mergePhonetics(mergedData.phonetics, item.phonetics);
+                                mergeSentenceExamples(mergedData.sentenceExamples, item.sentence_examples || item.sentenceExamples);
+                            }
                             // 合并短语
-                            mergePhrases(mergedData.phrases, item.phrases, sourceName);
+                            if (isSameWord) {
+                                mergePhrases(mergedData.phrases, item.phrases, sourceName);
+                            }
                             // 记录来源
                             if (!mergedData.sources.includes(sourceName)) {
                                 mergedData.sources.push(sourceName);
@@ -2345,6 +2671,8 @@ async function loadVocabularies() {
                             const mergedData = vocabularyMap.get(cleanWord);
                             // 合并翻译（按词性分组）
                             mergeTranslations(mergedData, item.translations, sourceName);
+                            mergePhonetics(mergedData.phonetics, item.phonetics);
+                            mergeSentenceExamples(mergedData.sentenceExamples, item.sentence_examples || item.sentenceExamples);
                             // 合并短语
                             mergePhrases(mergedData.phrases, item.phrases, sourceName);
                             // 记录来源
@@ -2432,7 +2760,7 @@ function clearScrollRescanTimer() {
     }
 }
 
-async function handleSpaNavigation(reason, prevUrl, nextUrl) {
+async function handleSpaNavigation(reason, _prevUrl, _nextUrl) {
     if (!isContentScriptActive()) {
         return;
     }
@@ -3069,6 +3397,7 @@ function stopProcessing() {
             clearTimeout(globalTooltipHideTimer);
             globalTooltipHideTimer = null;
         }
+        stopSpeaking();
         globalTooltip.remove();
         globalTooltip = null;
         globalTooltipOwner = null;
@@ -3090,7 +3419,8 @@ function stopProcessing() {
     });
     // 移除所有标注
     document.querySelectorAll('.vocab-highlight').forEach(el => {
-        const text = el.textContent.replace(/\([^)]+\)$/, '');
+        const originalText = el.dataset.originalText;
+        const text = originalText || el.textContent.replace(/\([^)]+\)$/, '');
         el.replaceWith(text);
     });
 }
@@ -3146,6 +3476,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (displayMode !== 'off') {
             resetAndReprocess();
         }
+    } else if (message.action === 'updateAnnotationOrder') {
+        cnToEnOrder = message.cnToEnOrder || 'source-first';
+        enToCnOrder = message.enToCnOrder || 'source-first';
+        diagLog('更新标注顺序:', cnToEnOrder, enToCnOrder);
+        if (displayMode !== 'off') {
+            resetAndReprocess();
+        }
+    } else if (message.action === 'updateAnnotationUnderline') {
+        disableAnnotationUnderline = message.disabled === true;
+        if (displayMode === 'annotation') {
+            resetAndReprocess();
+        }
+    } else if (message.action === 'updateAnnotationTooltip') {
+        disableAnnotationTooltip = message.disabled === true;
+        if (displayMode === 'annotation') {
+            hideGlobalTooltip();
+            resetAndReprocess();
+        }
+    } else if (message.action === 'updateSpeechVoice') {
+        speechVoiceURI = message.speechVoiceURI || '';
     } else if (message.action === 'updateHighlightColor') {
         highlightColorMode = message.mode || 'auto';
         highlightColor = message.color || '#2196f3';

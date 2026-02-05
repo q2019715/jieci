@@ -93,6 +93,10 @@
   text-underline-offset: 2px;
 }
 
+.vocab-highlight.vocab-no-underline {
+  text-decoration: none;
+}
+
 .vocab-highlight:hover {
   background-color: var(--vocab-highlight-bg);
 }
@@ -333,6 +337,22 @@
   line-height: 1;
 }
 
+.vocab-tooltip .vocab-phonetics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 6px;
+  color: var(--vt-muted);
+  font-size: 12px;
+}
+
+.vocab-tooltip .vocab-phonetic {
+  background: var(--vt-hover);
+  padding: 2px 6px;
+  border-radius: 10px;
+  line-height: 1.2;
+}
+
 /* Buttons */
 .vocab-tooltip .vocab-search-btn,
 .vocab-tooltip .vocab-action-btn {
@@ -428,6 +448,38 @@
 .vocab-tooltip .vocab-translations div {
   margin: 4px 0;
   color: var(--vt-muted);
+}
+
+.vocab-tooltip .vocab-examples {
+  margin: 8px 0;
+  padding-left: 6px;
+  border-left: 2px solid var(--vt-divider);
+}
+
+.vocab-tooltip .vocab-example {
+  margin: 6px 0;
+}
+
+.vocab-tooltip .vocab-example-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vocab-tooltip .vocab-example-en {
+  color: var(--vt-text);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.vocab-tooltip .vocab-example-speak {
+  flex: 0 0 auto;
+}
+
+.vocab-tooltip .vocab-example-zh {
+  color: var(--vt-muted-2);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .vocab-tooltip .vocab-divider {
@@ -549,6 +601,37 @@
   display: block;
 }
 
+.vocab-tooltip .vocab-examples-toggle {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--vt-muted);
+  margin-top: 8px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.vocab-tooltip .vocab-examples-toggle::after {
+  font-size: 11px;
+  color: var(--vt-muted-2);
+}
+
+.vocab-tooltip .vocab-examples-toggle[aria-expanded="true"]::after {
+  content: "鈻?;
+}
+
+.vocab-tooltip .vocab-examples {
+  display: none;
+  padding-left: 4px;
+}
+
+.vocab-tooltip .vocab-examples.is-open {
+  display: block;
+}
+
 .vocab-tooltip .vocab-phrase {
   margin: 6px 0;
   padding: 10px 10px;
@@ -599,7 +682,27 @@
 .vocab-tooltip .vocab-action-btn:focus-visible,
 .vocab-tooltip .vocab-tooltip-pin:focus-visible,
 .vocab-tooltip .vocab-tooltip-close:focus-visible,
-.vocab-tooltip .vocab-phrases-toggle:focus-visible {
+.vocab-tooltip .vocab-phrases-toggle:focus-visible,
+.vocab-tooltip .vocab-examples-toggle:focus-visible {
   outline: 2px solid rgba(33, 150, 243, 0.6);
   outline-offset: 2px;
+}
+
+.vocab-tooltip .vocab-phrases-toggle:focus,
+.vocab-tooltip .vocab-examples-toggle:focus {
+  outline: none;
+}
+
+/* Override toggle carets with characters to avoid overlap */
+.vocab-tooltip .vocab-phrases-toggle::after,
+.vocab-tooltip .vocab-examples-toggle::after {
+  content: "▼";
+  font-size: 11px;
+  color: var(--vt-muted-2);
+  line-height: 1;
+}
+
+.vocab-tooltip .vocab-phrases-toggle[aria-expanded="true"]::after,
+.vocab-tooltip .vocab-examples-toggle[aria-expanded="true"]::after {
+  content: "▲";
 }
