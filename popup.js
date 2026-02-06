@@ -1,4 +1,8 @@
 // popup.js - settings logic
+
+// 跨浏览器 API 兼容 shim (Chrome/Edge 用 chrome.*, Safari 用 browser.*)
+const api = globalThis.browser ?? globalThis.chrome;
+
 // Trie树构建（用于预处理词库）
 class TrieNode {
     constructor() {
@@ -61,7 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const titleLink = document.getElementById('titleLink');
     if (titleLink) {
         titleLink.addEventListener('click', () => {
-            chrome.tabs.create({url: 'https://jieci.top'});
+            api.tabs.create({url: 'https://jieci.top'});
         });
     }
     const displayModeSlider = document.getElementById('displayModeSlider');
@@ -263,8 +267,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         scheduleOverflowUpdate();
     };
-    if (aboutVersion && chrome.runtime?.getManifest) {
-        aboutVersion.textContent = chrome.runtime.getManifest().version || '-';
+    if (aboutVersion && api.runtime?.getManifest) {
+        aboutVersion.textContent = api.runtime.getManifest().version || '-';
     }
     if (oobeTitle1) {
         oobeTitle1.textContent = 'Hello 你好 ⌯･ᴗ･⌯';
@@ -307,7 +311,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isActive = item.dataset.step === String(step);
             item.classList.toggle('is-active', isActive);
         });
-        chrome.storage.local.set({[OOBE_STEP_KEY]: step}).catch(() => {
+        api.storage.local.set({[OOBE_STEP_KEY]: step}).catch(() => {
         });
     };
     const setOobeVisible = (visible) => {
@@ -367,18 +371,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     };
     const markOobeCompleted = async () => {
-        const result = await chrome.storage.local.get(OOBE_COMPLETION_KEY);
+        const result = await api.storage.local.get(OOBE_COMPLETION_KEY);
         const current = Number.isFinite(result[OOBE_COMPLETION_KEY])
             ? result[OOBE_COMPLETION_KEY]
             : 0;
         const next = Math.min(OOBE_REQUIRED_COUNT, current + 1);
-        await chrome.storage.local.set({[OOBE_COMPLETION_KEY]: next});
-        await chrome.storage.local.remove(OOBE_STEP_KEY);
+        await api.storage.local.set({[OOBE_COMPLETION_KEY]: next});
+        await api.storage.local.remove(OOBE_STEP_KEY);
         setOobeVisible(false);
         showPage(pageMain);
     };
     const getActiveTabs = async () => {
-        return chrome.tabs.query({active: true, currentWindow: true});
+        return api.tabs.query({active: true, currentWindow: true});
     };
     const notifyActiveTabs = async (message) => {
         const tabs = await getActiveTabs();
@@ -386,7 +390,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (tab.id == null) {
                 return;
             }
-            chrome.tabs.sendMessage(tab.id, message).catch(() => {
+            api.tabs.sendMessage(tab.id, message).catch(() => {
             });
         });
     };
@@ -744,7 +748,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const normalized = Array.from(new Set(blockedWords.map(normalizeWord).filter(Boolean))).sort();
         blockedWords = normalized;
         const trieIndex = buildEnglishTrieIndex(normalized);
-        await chrome.storage.local.set({
+        await api.storage.local.set({
             blockedWords: normalized,
             blockedWordsTrieIndex: trieIndex
         });
@@ -757,13 +761,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const persistFavoriteWords = async () => {
         const normalized = Array.from(new Set(favoriteWords.map(normalizeWord).filter(Boolean))).sort();
         favoriteWords = normalized;
-        await chrome.storage.local.set({favoriteWords: normalized});
+        await api.storage.local.set({favoriteWords: normalized});
     };
     const persistSiteBlockRules = async () => {
         const normalized = Array.from(new Set(siteBlockRules.map(normalizeSiteRule).filter(Boolean))).sort();
         siteBlockRules = normalized;
         const index = compileSiteRules(normalized);
-        await chrome.storage.local.set({
+        await api.storage.local.set({
             siteBlockRules: normalized,
             siteBlockIndex: index
         });
@@ -791,20 +795,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         link.remove();
         URL.revokeObjectURL(url);
     };
-    const requestTabHost = (tabId) => {
-        return new Promise((resolve) => {
-            if (tabId == null) {
-                resolve('');
-                return;
-            }
-            chrome.tabs.sendMessage(tabId, {action: 'getPageHost'}, (response) => {
-                if (chrome.runtime.lastError) {
-                    resolve('');
-                    return;
-                }
-                resolve(response && response.host ? response.host : '');
-            });
-        });
+    const requestTabHost = async (tabId) => {
+        if (tabId == null) {
+            return '';
+        }
+        try {
+            const response = await api.tabs.sendMessage(tabId, {action: 'getPageHost'});
+            return response && response.host ? response.host : '';
+        } catch (e) {
+            return '';
+        }
     };
     const loadCurrentSiteHost = async () => {
         try {
@@ -950,7 +950,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (oobeGoExample) {
         oobeGoExample.addEventListener('click', async () => {
-            chrome.tabs.create({url: 'https://jieci.top/testplugin.html'});
+            api.tabs.create({url: 'https://jieci.top/testplugin.html'});
             await markOobeCompleted();
         });
     }
@@ -1003,7 +1003,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const value = parseInt(displayModeSlider.value);
         const mode = displayModeMap[value];
         updateDisplayModeSliderUI(value);
-        await chrome.storage.local.set({displayMode: mode});
+        await api.storage.local.set({displayMode: mode});
         await notifyActiveTabs({
             action: 'updateDisplayMode',
             mode: mode
@@ -1020,7 +1020,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const value = parseInt(annotationModeSlider.value);
         const mode = annotationModeMap[value];
         updateAnnotationModeSliderUI(value);
-        await chrome.storage.local.set({annotationMode: mode});
+        await api.storage.local.set({annotationMode: mode});
         await notifyActiveTabs({
             action: 'updateMode',
             mode: mode
@@ -1037,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const value = parseInt(dedupeModeSlider.value);
         const mode = dedupeModeMap[value];
         updateDedupeModeSliderUI(value);
-        await chrome.storage.local.set({dedupeMode: mode});
+        await api.storage.local.set({dedupeMode: mode});
         await notifyActiveTabs({
             action: 'updateDedupeMode',
             mode: mode
@@ -1097,7 +1097,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const saveMaxMatches = async (value) => {
         const maxMatches = (!Number.isFinite(value) || value <= 0) ? 0 : Math.max(1, Math.floor(value));
         updateMaxMatchesUI(maxMatches);
-        await chrome.storage.local.set({maxMatchesPerNode: maxMatches});
+        await api.storage.local.set({maxMatchesPerNode: maxMatches});
         await notifyActiveTabs({
             action: 'updateMaxMatches',
             maxMatches: maxMatches
@@ -1117,7 +1117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const rawLength = parseInt(minTextLengthSlider.value, 10) || 0;
         const minLength = Math.max(5, rawLength);
         minTextLengthLabel.textContent = minLength;
-        await chrome.storage.local.set({minTextLength: minLength});
+        await api.storage.local.set({minTextLength: minLength});
         await notifyActiveTabs({
             action: 'updateMinTextLength',
             minLength: minLength
@@ -1126,7 +1126,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     dedupeRepeatCountSlider.addEventListener('input', async () => {
         const repeatCount = parseInt(dedupeRepeatCountSlider.value, 10) || 10;
         dedupeRepeatCountLabel.textContent = repeatCount;
-        await chrome.storage.local.set({dedupeRepeatCount: repeatCount});
+        await api.storage.local.set({dedupeRepeatCount: repeatCount});
         await notifyActiveTabs({
             action: 'updateDedupeRepeatCount',
             repeatCount: repeatCount
@@ -1137,7 +1137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         clearDedupeCountsButton.disabled = true;
         clearDedupeCountsButton.textContent = '删除中...';
         try {
-            await chrome.storage.local.remove('dedupeGlobalState');
+            await api.storage.local.remove('dedupeGlobalState');
             await notifyActiveTabs({
                 action: 'clearDedupeCounts'
             });
@@ -1153,7 +1153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     smartSkipCodeLinksToggle.addEventListener('change', async () => {
         const enabled = smartSkipCodeLinksToggle.checked;
-        await chrome.storage.local.set({smartSkipCodeLinks: enabled});
+        await api.storage.local.set({smartSkipCodeLinks: enabled});
         await notifyActiveTabs({
             action: 'updateSmartSkipCodeLinks',
             enabled: enabled
@@ -1162,7 +1162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (disableAnnotationUnderlineToggle) {
         disableAnnotationUnderlineToggle.addEventListener('change', async () => {
             const disabled = disableAnnotationUnderlineToggle.checked;
-            await chrome.storage.local.set({disableAnnotationUnderline: disabled});
+            await api.storage.local.set({disableAnnotationUnderline: disabled});
             await notifyActiveTabs({
                 action: 'updateAnnotationUnderline',
                 disabled: disabled
@@ -1172,7 +1172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (disableAnnotationTooltipToggle) {
         disableAnnotationTooltipToggle.addEventListener('change', async () => {
             const disabled = disableAnnotationTooltipToggle.checked;
-            await chrome.storage.local.set({disableAnnotationTooltip: disabled});
+            await api.storage.local.set({disableAnnotationTooltip: disabled});
             await notifyActiveTabs({
                 action: 'updateAnnotationTooltip',
                 disabled: disabled
@@ -1182,7 +1182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const debugModeToggle = document.getElementById('debugMode');
     debugModeToggle.addEventListener('change', async () => {
         const enabled = debugModeToggle.checked;
-        await chrome.storage.local.set({debugMode: enabled});
+        await api.storage.local.set({debugMode: enabled});
         await notifyActiveTabs({
             action: 'updateDebugMode',
             enabled: enabled
@@ -1191,7 +1191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (resetPopupSizeButton) {
         resetPopupSizeButton.addEventListener('click', async () => {
             const originalText = resetPopupSizeButton.textContent;
-            await chrome.storage.local.remove(TOOLTIP_SIZE_STORAGE_KEY);
+            await api.storage.local.remove(TOOLTIP_SIZE_STORAGE_KEY);
             await notifyActiveTabs({action: 'resetTooltipSize'});
             if (resetPopupSizeButton) {
                 resetPopupSizeButton.textContent = '已重置';
@@ -1211,7 +1211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             highlightColorMode: mode,
             highlightColor: color
         };
-        await chrome.storage.local.set(settings);
+        await api.storage.local.set(settings);
         await notifyActiveTabs({
             action: 'updateHighlightColor',
             mode: mode,
@@ -1233,7 +1233,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         const cnToEnOrder = cnToEnOrderSelect.value;
         const enToCnOrder = enToCnOrderSelect.value;
-        await chrome.storage.local.set({
+        await api.storage.local.set({
             cnToEnOrder,
             enToCnOrder
         });
@@ -1252,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (searchProviderSelect) {
         searchProviderSelect.addEventListener('change', async () => {
             const provider = searchProviderSelect.value;
-            await chrome.storage.local.set({searchProvider: provider});
+            await api.storage.local.set({searchProvider: provider});
             await notifyActiveTabs({
                 action: 'updateSearchProvider',
                 provider: provider
@@ -1289,7 +1289,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         const speechVoiceURI = speechVoiceSelect.value || '';
-        await chrome.storage.local.set({speechVoiceURI});
+        await api.storage.local.set({speechVoiceURI});
         await notifyActiveTabs({
             action: 'updateSpeechVoice',
             speechVoiceURI
@@ -1666,7 +1666,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             downloadErrorOk.style.display = 'none';
         }
         try {
-            const vocabularies = await chrome.storage.local.get('vocabularies') || {};
+            const vocabularies = await api.storage.local.get('vocabularies') || {};
             const vocabList = vocabularies.vocabularies || [];
             const dictName = (dict.name || '').trim();
             if (dictName && vocabList.some(vocab => (vocab.name || '').trim() === dictName)) {
@@ -1723,7 +1723,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 try {
                     // 导入词库
-                    const vocabularies = await chrome.storage.local.get('vocabularies') || {};
+                    const vocabularies = await api.storage.local.get('vocabularies') || {};
                     let vocabList = vocabularies.vocabularies || [];
                     vocabList.push({
                         id: generateId(),
@@ -1732,11 +1732,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         wordCount: data.length,
                         data: data
                     });
-                    await chrome.storage.local.set({vocabularies: vocabList});
+                    await api.storage.local.set({vocabularies: vocabList});
                     // 构建并缓存Trie树索引
                     console.log('构建Trie树索引...');
                     const trieIndex = buildChineseTrieIndex(vocabList);
-                    await chrome.storage.local.set({vocabularyTrieIndex: trieIndex});
+                    await api.storage.local.set({vocabularyTrieIndex: trieIndex});
                     console.log('Trie树索引构建完成');
                     progressPercent.textContent = '100%';
                     progressBar.style.width = '100%';
@@ -1976,12 +1976,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function finalizeVocabulariesUpdate(vocabList) {
-        await chrome.storage.local.set({vocabularies: vocabList});
+        await api.storage.local.set({vocabularies: vocabList});
         if (vocabList.length > 0) {
             const trieIndex = buildChineseTrieIndex(vocabList);
-            await chrome.storage.local.set({vocabularyTrieIndex: trieIndex});
+            await api.storage.local.set({vocabularyTrieIndex: trieIndex});
         } else {
-            await chrome.storage.local.remove('vocabularyTrieIndex');
+            await api.storage.local.remove('vocabularyTrieIndex');
         }
         await loadSettings();
         notifyContentScripts();
@@ -2002,7 +2002,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         try {
             const dictionaries = await fetchServerDictionaryIndex();
-            const result = await chrome.storage.local.get('vocabularies');
+            const result = await api.storage.local.get('vocabularies');
             let vocabList = result.vocabularies || [];
             if (vocabList.length === 0) {
                 importStatus.textContent = '暂无可更新的本地词库';
@@ -2078,7 +2078,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!dict) {
                 throw new Error('服务器未找到该词库');
             }
-            const result = await chrome.storage.local.get('vocabularies');
+            const result = await api.storage.local.get('vocabularies');
             let vocabList = result.vocabularies || [];
             vocabList = await updateVocabularyEntry(vocabList, vocab, dict, (percent) => {
                 updateCurrentProgress(`更新中: ${dict.name || vocab.name || '未命名词库'}`, percent);
@@ -2149,7 +2149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         try {
             const dictionaries = await fetchServerDictionaryIndex();
-            const result = await chrome.storage.local.get('vocabularies');
+            const result = await api.storage.local.get('vocabularies');
             let vocabList = result.vocabularies || [];
             if (vocabList.length === 0) {
                 importStatus.textContent = '暂无可更新的本地词库';
@@ -2253,7 +2253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         importStatus.className = 'import-status importing';
         try {
             const dictionaries = await fetchServerDictionaryIndex();
-            const result = await chrome.storage.local.get('vocabularies');
+            const result = await api.storage.local.get('vocabularies');
             let vocabList = result.vocabularies || [];
             const vocab = vocabList.find(item => item.id === vocabId);
             if (!vocab) {
@@ -2319,7 +2319,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         importStatus.textContent = '导入中...';
         importStatus.className = 'import-status importing';
         try {
-            const vocabularies = await chrome.storage.local.get('vocabularies') || {};
+            const vocabularies = await api.storage.local.get('vocabularies') || {};
             let vocabList = vocabularies.vocabularies || [];
             for (const file of files) {
                 const content = await readFileAsText(file);
@@ -2338,11 +2338,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     data: data
                 });
             }
-            await chrome.storage.local.set({vocabularies: vocabList});
+            await api.storage.local.set({vocabularies: vocabList});
             // 构建并缓存Trie树索引（中文->英文模式）
             console.log('构建Trie树索引...');
             const trieIndex = buildChineseTrieIndex(vocabList);
-            await chrome.storage.local.set({vocabularyTrieIndex: trieIndex});
+            await api.storage.local.set({vocabularyTrieIndex: trieIndex});
             console.log('Trie树索引构建完成并已缓存');
             importStatus.textContent = '导入成功' + files.length + '一份';
             importStatus.className = 'import-status success';
@@ -2359,7 +2359,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     async function loadSettings() {
-        const result = await chrome.storage.local.get([
+        const result = await api.storage.local.get([
             'displayMode',
             'vocabularies',
             'maxMatchesPerNode',
@@ -2431,7 +2431,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         minTextLengthSlider.value = minLength;
         minTextLengthLabel.textContent = minLength;
         if (storedMinLength < 5) {
-            await chrome.storage.local.set({minTextLength: minLength});
+            await api.storage.local.set({minTextLength: minLength});
             await notifyActiveTabs({
                 action: 'updateMinTextLength',
                 minLength: minLength
@@ -2545,17 +2545,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function deleteVocabulary(id) {
-        const result = await chrome.storage.local.get('vocabularies');
+        const result = await api.storage.local.get('vocabularies');
         let vocabList = result.vocabularies || [];
         vocabList = vocabList.filter(v => v.id !== id);
-        await chrome.storage.local.set({vocabularies: vocabList});
+        await api.storage.local.set({vocabularies: vocabList});
         // 重新构建Trie树索引
         if (vocabList.length > 0) {
             const trieIndex = buildChineseTrieIndex(vocabList);
-            await chrome.storage.local.set({vocabularyTrieIndex: trieIndex});
+            await api.storage.local.set({vocabularyTrieIndex: trieIndex});
         } else {
             // 如果没有词库了，清空索引
-            await chrome.storage.local.remove('vocabularyTrieIndex');
+            await api.storage.local.remove('vocabularyTrieIndex');
         }
         await loadSettings();
         notifyContentScripts();
