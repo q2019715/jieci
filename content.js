@@ -1,6 +1,10 @@
 // content.js - 网页内容脚本，负责文本匹配和替换
 // by q2019715 https://www.q2019.com
 // for software https://jieci.top
+
+// 跨浏览器 API 兼容 shim (Chrome/Edge 用 chrome.*, Safari 用 browser.*)
+const api = globalThis.browser ?? globalThis.chrome;
+
 // ===========常量定义================
 let displayMode = 'off'; // 显示模式：'off'、'underline'、'annotation'
 let searchProvider = 'youdao';
@@ -442,25 +446,20 @@ function normalizeMaxMatches(value) {
 
 // ================分词相关函数结束===============
 // ========== 词性推断相关函数 ==========
-function requestJiebaPayload(messageType, text, resultKey) {
-    return new Promise((resolve) => {
-        if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
-            resolve(null);
-            return;
+async function requestJiebaPayload(messageType, text, resultKey) {
+    if (!api.runtime || !api.runtime.sendMessage) {
+        return null;
+    }
+    try {
+        const response = await api.runtime.sendMessage({type: messageType, text});
+        if (!response || !response.ok || !Array.isArray(response[resultKey])) {
+            return null;
         }
-        chrome.runtime.sendMessage({type: messageType, text}, (response) => {
-            if (chrome.runtime.lastError) {
-                diagLog('[jieba]', messageType, 'failed:', chrome.runtime.lastError);
-                resolve(null);
-                return;
-            }
-            if (!response || !response.ok || !Array.isArray(response[resultKey])) {
-                resolve(null);
-                return;
-            }
-            resolve(response[resultKey]);
-        });
-    });
+        return response[resultKey];
+    } catch (e) {
+        diagLog('[jieba]', messageType, 'failed:', e);
+        return null;
+    }
 }
 
 // 请求 jieba 词性标注
@@ -1873,7 +1872,7 @@ function saveTooltipSize(size) {
         clearTimeout(tooltipSizeSaveTimer);
     }
     tooltipSizeSaveTimer = setTimeout(() => {
-        chrome.storage.local.set({[TOOLTIP_SIZE_STORAGE_KEY]: clamped}).catch(() => {
+        api.storage.local.set({[TOOLTIP_SIZE_STORAGE_KEY]: clamped}).catch(() => {
         });
     }, 200);
 }
@@ -2051,7 +2050,7 @@ function getGlobalTooltip() {
                 const isOpen = phrasesBlock.classList.toggle('is-open');
                 phrasesToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
                 phrasesExpanded = isOpen;
-                chrome.storage.local.set({phrasesExpanded: isOpen}).catch(() => {
+                api.storage.local.set({phrasesExpanded: isOpen}).catch(() => {
                 });
                 if (event.detail > 0) {
                     phrasesToggle.blur();
@@ -2066,7 +2065,7 @@ function getGlobalTooltip() {
                 const isOpen = examplesBlock.classList.toggle('is-open');
                 examplesToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
                 examplesExpanded = isOpen;
-                chrome.storage.local.set({examplesExpanded: isOpen}).catch(() => {
+                api.storage.local.set({examplesExpanded: isOpen}).catch(() => {
                 });
                 if (event.detail > 0) {
                     examplesToggle.blur();
@@ -2524,7 +2523,7 @@ function updateSiteBlockState() {
 // 加载设置
 async function loadSettings() {
     try {
-        const result = await chrome.storage.local.get(['displayMode', 'maxMatchesPerNode', 'minTextLength', 'annotationMode', 'highlightColorMode', 'highlightColor', 'cnToEnOrder', 'enToCnOrder', 'disableAnnotationUnderline', 'disableAnnotationTooltip', 'speechVoiceURI', 'smartSkipCodeLinks', 'searchProvider', 'phrasesExpanded', 'examplesExpanded', 'blockedWords', 'blockedWordsTrieIndex', 'favoriteWords', 'siteBlockRules', 'siteBlockIndex', 'dedupeMode', 'dedupeRepeatCount', 'dedupeCooldownSeconds', 'dedupeGlobalState', 'debugMode', TOOLTIP_SIZE_STORAGE_KEY]);
+        const result = await api.storage.local.get(['displayMode', 'maxMatchesPerNode', 'minTextLength', 'annotationMode', 'highlightColorMode', 'highlightColor', 'cnToEnOrder', 'enToCnOrder', 'disableAnnotationUnderline', 'disableAnnotationTooltip', 'speechVoiceURI', 'smartSkipCodeLinks', 'searchProvider', 'phrasesExpanded', 'examplesExpanded', 'blockedWords', 'blockedWordsTrieIndex', 'favoriteWords', 'siteBlockRules', 'siteBlockIndex', 'dedupeMode', 'dedupeRepeatCount', 'dedupeCooldownSeconds', 'dedupeGlobalState', 'debugMode', TOOLTIP_SIZE_STORAGE_KEY]);
         displayMode = result.displayMode || 'off';
         maxMatchesPerNode = normalizeMaxMatches(result.maxMatchesPerNode ?? maxMatchesPerNode);
         minTextLength = result.minTextLength ?? minTextLength;
@@ -2593,7 +2592,7 @@ async function loadSettings() {
 // 加载词库
 async function loadVocabularies() {
     try {
-        const result = await chrome.storage.local.get(['vocabularies', 'vocabularyTrieIndex']);
+        const result = await api.storage.local.get(['vocabularies', 'vocabularyTrieIndex']);
         const vocabList = result.vocabularies || [];
         const cachedTrieIndex = result.vocabularyTrieIndex;
         diagLog('加载词库，文件数量:', vocabList.length, '模式:', annotationMode);
@@ -2695,14 +2694,14 @@ async function loadVocabularies() {
 
 async function persistFavoriteWords() {
     const words = Array.from(favoriteWordsSet).sort();
-    await chrome.storage.local.set({favoriteWords: words});
+    await api.storage.local.set({favoriteWords: words});
 }
 
 async function persistBlockedWords() {
     const words = Array.from(blockedWordsSet).sort();
     const trieIndex = buildEnglishTrieIndex(words);
     blockedWordsTrie = trieIndex;
-    await chrome.storage.local.set({
+    await api.storage.local.set({
         blockedWords: words,
         blockedWordsTrieIndex: trieIndex
     });
@@ -2925,7 +2924,7 @@ function getDedupeKey(matchText, effectiveMode) {
 async function loadDedupeStateFromStorage(cachedState) {
     let state = cachedState;
     if (!state) {
-        const result = await chrome.storage.local.get(['dedupeGlobalState']);
+        const result = await api.storage.local.get(['dedupeGlobalState']);
         state = result.dedupeGlobalState;
     }
     if (!state || !state.remainingByWord) {
@@ -2963,7 +2962,7 @@ function persistDedupeState() {
             remainingByWord[key] = value;
         }
     });
-    chrome.storage.local.set({dedupeGlobalState: {remainingByWord}}).catch(() => {
+    api.storage.local.set({dedupeGlobalState: {remainingByWord}}).catch(() => {
     });
 }
 
@@ -3440,7 +3439,7 @@ function stopProcessing() {
     }
 })();
 // 监听来自 popup 的消息,如有变动进行更新
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+api.runtime.onMessage.addListener((message, sender, sendResponse) => {
     diagLog('收到消息:', message);
     if (message.action === 'updateDisplayMode') {
         displayMode = message.mode;
@@ -3569,7 +3568,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
     } else if (message.action === 'clearDedupeCounts') {
         dedupeRemaining.clear();
-        chrome.storage.local.remove('dedupeGlobalState').catch(() => {
+        api.storage.local.remove('dedupeGlobalState').catch(() => {
         });
         if (displayMode !== 'off') {
             resetAndReprocess();

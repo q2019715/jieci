@@ -1,6 +1,9 @@
 // background.js - 后台服务脚本
 import initJieba, * as jieba from './vendor/jieba_rs_wasm.js';
 
+// 跨浏览器 API 兼容 shim (Chrome/Edge 用 chrome.*, Safari 用 browser.*)
+const api = globalThis.browser ?? globalThis.chrome;
+
 // Trie树构建（用于预处理词库）
 class TrieNode {
   constructor() {
@@ -61,11 +64,11 @@ function buildChineseTrieIndex(vocabularies) {
 }
 
 // 插件安装时初始化
-chrome.runtime.onInstalled.addListener(async () => {
+api.runtime.onInstalled.addListener(async () => {
   console.log('\u622a\u8bcd\u8bb0\u5fc6\u5df2\u5b89\u88c5');
 
   // 初始化默认设置
-  const result = await chrome.storage.local.get([
+  const result = await api.storage.local.get([
     'displayMode',
     'vocabularies',
     'vocabularyTrieIndex',
@@ -82,64 +85,64 @@ chrome.runtime.onInstalled.addListener(async () => {
   ]);
 
   if (!result.displayMode) {
-    await chrome.storage.local.set({ displayMode: 'off' });
+    await api.storage.local.set({ displayMode: 'off' });
   }
 
   if (!result.vocabularies) {
-    await chrome.storage.local.set({ vocabularies: [] });
+    await api.storage.local.set({ vocabularies: [] });
   }
 
   // 检查是否需要构建Trie树索引
   if (result.vocabularies && result.vocabularies.length > 0 && !result.vocabularyTrieIndex) {
     console.log('检测到词库但无Trie树索引，开始构建...');
     const trieIndex = buildChineseTrieIndex(result.vocabularies);
-    await chrome.storage.local.set({ vocabularyTrieIndex: trieIndex });
+    await api.storage.local.set({ vocabularyTrieIndex: trieIndex });
     console.log('Trie树索引构建完成');
   }
 
   if (result.maxMatchesPerNode === undefined) {
-    await chrome.storage.local.set({ maxMatchesPerNode: 3 });
+    await api.storage.local.set({ maxMatchesPerNode: 3 });
   }
 
   if (result.minTextLength === undefined) {
-    await chrome.storage.local.set({ minTextLength: 10 });
+    await api.storage.local.set({ minTextLength: 10 });
   }
 
   if (!result.annotationMode) {
-    await chrome.storage.local.set({ annotationMode: 'auto' });
+    await api.storage.local.set({ annotationMode: 'auto' });
   }
 
   if (result.speechVoiceURI === undefined) {
-    await chrome.storage.local.set({ speechVoiceURI: '' });
+    await api.storage.local.set({ speechVoiceURI: '' });
   }
 
   if (!result.cnToEnOrder) {
-    await chrome.storage.local.set({ cnToEnOrder: 'source-first' });
+    await api.storage.local.set({ cnToEnOrder: 'source-first' });
   }
 
   if (!result.enToCnOrder) {
-    await chrome.storage.local.set({ enToCnOrder: 'source-first' });
+    await api.storage.local.set({ enToCnOrder: 'source-first' });
   }
 
   if (result.disableAnnotationUnderline === undefined) {
-    await chrome.storage.local.set({ disableAnnotationUnderline: false });
+    await api.storage.local.set({ disableAnnotationUnderline: false });
   }
 
   if (result.disableAnnotationTooltip === undefined) {
-    await chrome.storage.local.set({ disableAnnotationTooltip: false });
+    await api.storage.local.set({ disableAnnotationTooltip: false });
   }
 
   if (!result.highlightColorMode) {
-    await chrome.storage.local.set({ highlightColorMode: 'none' });
+    await api.storage.local.set({ highlightColorMode: 'none' });
   }
 
   if (!result.highlightColor) {
-    await chrome.storage.local.set({ highlightColor: '#2196f3' });
+    await api.storage.local.set({ highlightColor: '#2196f3' });
   }
 });
 
 // 监听存储变化
-chrome.storage.onChanged.addListener((changes, namespace) => {
+api.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local') {
     console.log('存储已更新:', changes);
   }
@@ -158,23 +161,28 @@ async function ensureJiebaReady() {
   if (jiebaReady) {
     return jiebaReady;
   }
-  const wasmUrl = chrome.runtime.getURL('vendor/jieba_rs_wasm_bg.wasm');
+  const wasmUrl = api.runtime.getURL('vendor/jieba_rs_wasm_bg.wasm');
   jiebaReady = (async () => {
     const resp = await fetch(wasmUrl);
     const bytes = await resp.arrayBuffer();
+    // 尝试 WebAssembly.instantiate — Safari 可能因 CSP 限制阻止 WASM
     await initJieba({ module_or_path: bytes });
     jiebaModule = jieba;
+    console.log('[jieba] WASM module loaded successfully');
     return jieba;
   })().catch((error) => {
-    console.error('Failed to initialize jieba-wasm in background:', error);
+    // Safari Web Extension 中 wasm-unsafe-eval CSP 可能不被支持，
+    // 此时中文分词功能不可用，但英文标注主流程不受影响
+    console.warn('[jieba] WASM initialization failed (Chinese segmentation unavailable):', error.message || error);
     jiebaModule = null;
+    jiebaReady = null; // 允许后续重试
     return null;
   });
   return jiebaReady;
 }
 
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+api.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message) {
     return false;
   }
