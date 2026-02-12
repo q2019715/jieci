@@ -249,16 +249,31 @@ h2 {
   text-align: center;
 }
 
-/* 控制开关区�?*/
+/* 控制开关区 */
 .control-section {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  position: relative;
+  z-index: 1;
   background: white;
   padding: 15px;
   border-radius: 8px;
   margin-bottom: 12px;
+  border: 1px solid #e6e6e6;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.control-section:hover {
+  transform: translateY(-1px);
+  z-index: 50;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+  border-color: #cfd9e5;
+}
+
+.control-section:focus-within {
+  z-index: 50;
 }
 
 .control-section label {
@@ -329,7 +344,7 @@ h2 {
   color: #666;
 }
 
-/* 三态滑动开�?*/
+/* 三态滑动开关 */
 .mode-slider-container {
   position: relative;
   flex: 1;
@@ -442,7 +457,7 @@ h2 {
   color: #4caf50;
 }
 
-/* 开关按钮样�?*/
+/* 开关按钮样式 */
 .switch {
   position: relative;
   display: inline-block;
@@ -586,7 +601,20 @@ input:checked + .slider:before {
 }
 
 #pageVocab .settings-section {
-  min-height: 300px;
+  min-height: 480px;
+}
+
+#pageVocab .import-controls {
+  margin-bottom: 10px;
+}
+
+#pageVocab #importStatus {
+  display: block;
+  margin-bottom: 10px;
+}
+
+#pageVocab .word-search {
+  margin-bottom: 10px;
 }
 
 .settings-header {
@@ -707,9 +735,16 @@ input:checked + .slider:before {
   cursor: pointer;
   padding: 0;
   position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.help-icon.is-visible,
+.help-icon:hover,
+.help-icon:focus-visible {
+  z-index: 60;
 }
 
 .help-icon:hover {
@@ -718,10 +753,10 @@ input:checked + .slider:before {
 }
 
 .help-icon .help-tooltip {
-  position: fixed;
-  left: 0;
-  top: 0;
-  transform: none;
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%);
   background: #333;
   color: #fff;
   padding: 6px 8px;
@@ -733,7 +768,7 @@ input:checked + .slider:before {
   max-width: 240px;
   opacity: 0;
   pointer-events: none;
-  z-index: 10;
+  z-index: 9999;
 }
 
 .help-icon:hover .help-tooltip,
@@ -745,6 +780,18 @@ input:checked + .slider:before {
 .help-icon.tooltip-up .help-tooltip {
   top: auto;
   bottom: calc(100% + 6px);
+}
+
+.help-icon.tooltip-align-right .help-tooltip {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.help-icon.tooltip-align-left .help-tooltip {
+  left: 0;
+  right: auto;
+  transform: none;
 }
 
 .smart-toggle-row {
@@ -1001,7 +1048,7 @@ input:checked + .slider:before {
   font-weight: 600;
 }
 
-/* 滚动条样�?*/
+/* 滚动条样式 */
 .files-list::-webkit-scrollbar {
   width: 6px;
 }
@@ -1127,7 +1174,7 @@ input:checked + .slider:before {
   font-size: 14px;
   font-weight: 600;
   color: #333;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
 }
 
 .dict-info {
@@ -1135,10 +1182,56 @@ input:checked + .slider:before {
   color: #666;
   display: flex;
   gap: 15px;
+  margin-bottom: 8px;
 }
 
 .dict-size {
   color: #999;
+}
+
+.dict-description {
+  font-size: 12px;
+  color: #666;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+#downloadModal .word-search {
+  margin-bottom: 10px;
+}
+
+#downloadModal .dict-list {
+  margin-top: 6px;
+}
+
+.dict-tag-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.dict-tag-chip {
+  border: 1px solid #d0d7de;
+  background: #fff;
+  color: #4a5568;
+  border-radius: 14px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.dict-tag-chip:hover {
+  border-color: #2196f3;
+  color: #1976d2;
+}
+
+.dict-tag-chip.active {
+  background: rgba(33, 150, 243, 0.12);
+  border-color: #2196f3;
+  color: #1565c0;
 }
 
 .download-progress {
@@ -1179,6 +1272,46 @@ input:checked + .slider:before {
   display: flex;
   justify-content: center;
   margin-top: 12px;
+}
+
+#updateModal .download-actions {
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  margin: 16px auto 0;
+  padding: 0;
+}
+
+#updateModal .download-actions .btn {
+  width: 110px;
+  min-width: 110px;
+  height: 38px;
+  padding: 0 12px;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+#updateModal .update-error-message {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+.update-error-message {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fff3f3;
+  border: 1px solid #ffcaca;
+  color: #b3261e;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .dict-list::-webkit-scrollbar,
@@ -1382,8 +1515,18 @@ input:checked + .slider:before {
   }
 
   .settings-header:hover,
-  .dict-item:hover {
+  .dict-item:hover,
+  .control-section:hover {
     background: #32363b;
+  }
+
+  .control-section:hover {
+    border-color: #4a4f57;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.45);
+  }
+
+  .control-section {
+    border-color: #3a3d43;
   }
 
   .mode-slider-track {
@@ -1658,6 +1801,24 @@ input:checked + .slider:before {
     background: #2f3338;
   }
 
+  .dict-tag-chip {
+    background: #2f3338;
+    border-color: #4a4f57;
+    color: #d5dbe3;
+  }
+
+  .dict-tag-chip:hover {
+    background: #353b42;
+    border-color: #6f87a6;
+    color: #dbe9ff;
+  }
+
+  .dict-tag-chip.active {
+    background: rgba(127, 183, 255, 0.2);
+    border-color: #7fb7ff;
+    color: #dbe9ff;
+  }
+
   .range-label {
     color: #e6e6e6;
   }
@@ -1705,6 +1866,16 @@ input:checked + .slider:before {
     background: #1f2226;
     color: #e6e6e6;
     border-color: #3a3d43;
+  }
+
+  #downloadModal .word-search input {
+    background: #2a2d32;
+    border-color: #4a4f57;
+    color: #e6e6e6;
+  }
+
+  #downloadModal .word-search input::placeholder {
+    color: #9aa0a6;
   }
 
   .word-search input:focus {
@@ -1757,5 +1928,14 @@ input:checked + .slider:before {
 
   .quick-subtitle {
     color: #9aa0a6;
+  }
+
+  #pageMain .control-section {
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 0 0 1px #3a3d43;
+  }
+
+  #pageMain .control-section:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.45), inset 0 0 0 1px #4b515a;
   }
 }

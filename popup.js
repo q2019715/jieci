@@ -122,6 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const importBtn = document.getElementById('importBtn');
     const fileInput = document.getElementById('fileInput');
     const importStatus = document.getElementById('importStatus');
+    const vocabSearchInput = document.getElementById('vocabSearchInput');
     const updateProgress = document.getElementById('updateProgress');
     const updateProgressLabel = document.getElementById('updateProgressLabel');
     const updateProgressPercent = document.getElementById('updateProgressPercent');
@@ -134,6 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const updateModalClose = document.getElementById('updateModalClose');
     const updateCancelBtn = document.getElementById('updateCancelBtn');
     const updateRetryBtn = document.getElementById('updateRetryBtn');
+    const updateErrorMessage = document.getElementById('updateErrorMessage');
     const filesList = document.getElementById('filesList');
     const fileCount = document.getElementById('fileCount');
     const maxMatchesSlider = document.getElementById('maxMatchesSlider');
@@ -174,6 +176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const siteBlockExportBtn = document.getElementById('siteBlockExportBtn');
     const siteBlockImportInput = document.getElementById('siteBlockImportInput');
     const smartSkipCodeLinksToggle = document.getElementById('smartSkipCodeLinks');
+    const smartSkipEditableTextboxesToggle = document.getElementById('smartSkipEditableTextboxes');
     const resetPopupSizeButton = document.getElementById('resetPopupSize');
     const blockSiteBtn = document.getElementById('blockSiteBtn');
     const quickFavorites = document.getElementById('quickFavorites');
@@ -195,6 +198,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modalClose = document.getElementById('modalClose');
     const loadingSpinner = document.getElementById('loadingSpinner');
     const dictList = document.getElementById('dictList');
+    const dictSearchInput = document.getElementById('dictSearchInput');
+    const dictTagFilters = document.getElementById('dictTagFilters');
     const downloadProgress = document.getElementById('downloadProgress');
     const downloadingDict = document.getElementById('downloadingDict');
     const downloadErrorOk = document.getElementById('downloadErrorOk');
@@ -221,18 +226,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         const iconRect = icon.getBoundingClientRect();
         const tooltipRect = tooltip.getBoundingClientRect();
         const padding = 8;
+        const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
         const spaceBelow = window.innerHeight - iconRect.bottom;
         const spaceAbove = iconRect.top;
-        let top;
         if (spaceBelow < tooltipRect.height + padding && spaceAbove > spaceBelow) {
-            top = iconRect.top - tooltipRect.height - 6;
+            icon.classList.add('tooltip-up');
         } else {
-            top = iconRect.bottom + 6;
+            icon.classList.remove('tooltip-up');
         }
-        let left = iconRect.left + iconRect.width / 2 - tooltipRect.width / 2;
-        left = Math.max(padding, Math.min(left, window.innerWidth - padding - tooltipRect.width));
-        tooltip.style.left = `${Math.round(left)}px`;
-        tooltip.style.top = `${Math.round(top)}px`;
+        icon.classList.remove('tooltip-align-left', 'tooltip-align-right');
+        const centeredLeft = iconRect.left + (iconRect.width - tooltipRect.width) / 2;
+        const centeredRight = centeredLeft + tooltipRect.width;
+        const shouldPreferRightAlign = iconRect.left > (viewportWidth / 2);
+        if (centeredRight >= viewportWidth - padding || shouldPreferRightAlign) {
+            icon.classList.add('tooltip-align-right');
+        } else if (centeredLeft < padding) {
+            icon.classList.add('tooltip-align-left');
+        }
+        tooltip.style.left = '';
+        tooltip.style.top = '';
     };
     const showHelpTooltip = (icon) => {
         icon.classList.add('is-visible');
@@ -241,6 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const hideHelpTooltip = (icon) => {
         icon.classList.remove('is-visible');
         icon.classList.remove('tooltip-up');
+        icon.classList.remove('tooltip-align-left', 'tooltip-align-right');
     };
     helpIcons.forEach((icon) => {
         icon.addEventListener('mouseenter', () => showHelpTooltip(icon));
@@ -440,6 +453,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     let siteBlockRules = [];
     let siteBlockSelected = new Set();
     let currentSiteHost = '';
+    let currentVocabList = [];
+    let serverDictList = [];
+    let selectedDictTags = new Set();
     const filterWords = (words, query) => {
         const normalized = normalizeWord(query);
         if (!normalized) {
@@ -1159,6 +1175,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             enabled: enabled
         });
     });
+    if (smartSkipEditableTextboxesToggle) {
+        smartSkipEditableTextboxesToggle.addEventListener('change', async () => {
+            const enabled = smartSkipEditableTextboxesToggle.checked;
+            await chrome.storage.local.set({smartSkipEditableTextboxes: enabled});
+            await notifyActiveTabs({
+                action: 'updateSmartSkipEditableTextboxes',
+                enabled: enabled
+            });
+        });
+    }
     if (disableAnnotationUnderlineToggle) {
         disableAnnotationUnderlineToggle.addEventListener('change', async () => {
             const disabled = disableAnnotationUnderlineToggle.checked;
@@ -1204,7 +1230,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     const updateHighlightControls = (mode) => {
-        highlightColorInput.disabled = mode !== 'custom';
+        const isCustomMode = mode === 'custom';
+        highlightColorInput.disabled = !isCustomMode;
+        highlightColorInput.style.display = isCustomMode ? '' : 'none';
     };
     const saveHighlightSettings = async (mode, color) => {
         const settings = {
@@ -1356,6 +1384,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (favoritesSearchInput) {
         favoritesSearchInput.addEventListener('input', () => {
             renderFavorites();
+        });
+    }
+    if (dictSearchInput) {
+        dictSearchInput.addEventListener('input', () => {
+            displayDictList(serverDictList);
+        });
+    }
+    if (dictTagFilters) {
+        dictTagFilters.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                const target = event.target;
+                if (target && target.classList && target.classList.contains('dict-tag-chip')) {
+                    event.preventDefault();
+                    target.click();
+                }
+            }
+        });
+    }
+    if (vocabSearchInput) {
+        vocabSearchInput.addEventListener('input', () => {
+            displayFilesList(currentVocabList);
         });
     }
     if (favoritesSelectAll) {
@@ -1589,6 +1638,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 打开下载模态框
     async function openDownloadModal() {
         downloadModal.classList.add('show');
+        if (dictSearchInput) {
+            dictSearchInput.value = '';
+            dictSearchInput.style.display = 'none';
+        }
+        selectedDictTags = new Set();
+        if (dictTagFilters) {
+            dictTagFilters.innerHTML = '';
+            dictTagFilters.style.display = 'none';
+        }
         loadingSpinner.style.display = 'block';
         dictList.style.display = 'none';
         dictList.classList.remove('show');
@@ -1597,15 +1655,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             downloadErrorOk.style.display = 'none';
         }
         try {
-            const response = await fetch(`${SERVER_URL}/dict/index.json`);
+            const cacheBust = `t=${Date.now()}`;
+            const response = await fetch(`${SERVER_URL}/dict/index.json?${cacheBust}`, {
+                cache: 'no-store'
+            });
             if (!response.ok) {
                 loadingSpinner.textContent = '加载失败: 获取词库列表失败';
                 console.error('获取词库列表失败:', response.status);
                 return;
             }
             const dictionaries = await response.json();
+            serverDictList = Array.isArray(dictionaries) ? dictionaries : [];
             loadingSpinner.style.display = 'none';
-            displayDictList(dictionaries);
+            if (dictSearchInput) {
+                dictSearchInput.style.display = 'block';
+            }
+            renderDictTagFilters(serverDictList);
+            displayDictList(serverDictList);
         } catch (error) {
             loadingSpinner.textContent = '加载失败: ' + error.message;
             console.error('获取词库列表失败:', error);
@@ -1622,14 +1688,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 显示词库列表
     function displayDictList(dictionaries) {
+        const sourceList = Array.isArray(dictionaries) ? dictionaries : [];
+        const query = normalizeWord(dictSearchInput ? dictSearchInput.value : '');
+        const filtered = sourceList.filter((dict) => {
+            const name = normalizeWord(dict && dict.name);
+            const desc = normalizeWord(dict && dict.description);
+            const filename = normalizeWord(dict && dict.filename);
+            const searchMatched = !query || name.includes(query) || desc.includes(query) || filename.includes(query);
+            if (!searchMatched) {
+                return false;
+            }
+            if (selectedDictTags.size === 0) {
+                return true;
+            }
+            const tags = Array.isArray(dict && dict.tags) ? dict.tags : [];
+            const tagSet = new Set(tags.map(tag => String(tag || '').trim()).filter(Boolean));
+            for (const tag of selectedDictTags) {
+                if (!tagSet.has(tag)) {
+                    return false;
+                }
+            }
+            return true;
+        });
         dictList.innerHTML = '';
-        if (!Array.isArray(dictionaries) || dictionaries.length === 0) {
+        if (filtered.length === 0) {
             dictList.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">暂无可用词库</div>';
             dictList.style.display = 'block';
             dictList.classList.add('show');
             return;
         }
-        dictionaries.forEach(dict => {
+        filtered.forEach(dict => {
             const dictItem = document.createElement('div');
             dictItem.className = 'dict-item';
             const dictName = document.createElement('div');
@@ -1642,10 +1730,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             const dictSize = document.createElement('span');
             dictSize.className = 'dict-size';
             dictSize.textContent = formatFileSize(dict.size || 0);
+            const dictLastModify = document.createElement('span');
+            dictLastModify.className = 'dict-size';
+            dictLastModify.textContent = `更新: ${dict['last-modify'] || '-'}`;
             dictInfo.appendChild(dictCount);
             dictInfo.appendChild(dictSize);
+            dictInfo.appendChild(dictLastModify);
             dictItem.appendChild(dictName);
             dictItem.appendChild(dictInfo);
+            const dictDescription = String(dict.description || '').trim();
+            if (dictDescription) {
+                const desc = document.createElement('div');
+                desc.className = 'dict-description';
+                desc.textContent = dictDescription;
+                dictItem.appendChild(desc);
+            }
             dictItem.addEventListener('click', () => {
                 downloadDictionary(dict);
             });
@@ -1655,8 +1754,55 @@ document.addEventListener('DOMContentLoaded', async () => {
         dictList.classList.add('show');
     }
 
+    function renderDictTagFilters(dictionaries) {
+        if (!dictTagFilters) {
+            return;
+        }
+        dictTagFilters.innerHTML = '';
+        const tagSet = new Set();
+        const sourceList = Array.isArray(dictionaries) ? dictionaries : [];
+        sourceList.forEach((dict) => {
+            const tags = Array.isArray(dict && dict.tags) ? dict.tags : [];
+            tags.forEach((tag) => {
+                const normalizedTag = String(tag || '').trim();
+                if (normalizedTag) {
+                    tagSet.add(normalizedTag);
+                }
+            });
+        });
+        const tags = Array.from(tagSet).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+        if (tags.length === 0) {
+            dictTagFilters.style.display = 'none';
+            return;
+        }
+        tags.forEach((tag) => {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'dict-tag-chip';
+            chip.textContent = tag;
+            chip.addEventListener('click', () => {
+                if (selectedDictTags.has(tag)) {
+                    selectedDictTags.delete(tag);
+                    chip.classList.remove('active');
+                } else {
+                    selectedDictTags.add(tag);
+                    chip.classList.add('active');
+                }
+                displayDictList(serverDictList);
+            });
+            dictTagFilters.appendChild(chip);
+        });
+        dictTagFilters.style.display = 'flex';
+    }
+
     // 下载词库
     async function downloadDictionary(dict) {
+        if (dictSearchInput) {
+            dictSearchInput.style.display = 'none';
+        }
+        if (dictTagFilters) {
+            dictTagFilters.style.display = 'none';
+        }
         dictList.style.display = 'none';
         downloadProgress.style.display = 'block';
         downloadingDict.textContent = `正在下载: ${dict.name}`;
@@ -1776,7 +1922,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return (name || '').trim();
     }
 
-    function openUpdateModal() {
+function openUpdateModal() {
         if (!updateModal) {
             return;
         }
@@ -1791,6 +1937,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (updateCancelBtn) {
             updateCancelBtn.disabled = false;
         }
+        setUpdateError('');
         setUpdateProgressVisible(true);
         updateCurrentProgress('更新进度', 0);
         if (updateOverall) {
@@ -1800,6 +1947,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function shouldAutoCloseUpdateModal() {
         return !updateRetryBtn || updateRetryBtn.style.display === 'none';
+    }
+
+    function setUpdateError(message) {
+        if (!updateErrorMessage) {
+            return;
+        }
+        const text = String(message || '').trim();
+        if (!text) {
+            updateErrorMessage.textContent = '';
+            updateErrorMessage.style.display = 'none';
+            return;
+        }
+        updateErrorMessage.textContent = text;
+        updateErrorMessage.style.display = 'block';
+    }
+
+    function syncUpdateErrorFromImportStatus() {
+        if (!updateModal || !updateModal.classList.contains('show')) {
+            return;
+        }
+        if (!importStatus) {
+            return;
+        }
+        if (String(importStatus.className || '').includes('error')) {
+            setUpdateError(importStatus.textContent || '更新失败');
+            return;
+        }
+        setUpdateError('');
     }
 
     function closeUpdateModal() {
@@ -2120,6 +2295,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const showUpdateError = (message) => {
         importStatus.textContent = message;
         importStatus.className = 'import-status error';
+        setUpdateError(message);
         if (updateRetryBtn) {
             updateRetryBtn.style.display = 'inline-flex';
         }
@@ -2129,11 +2305,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         showUpdateError('已取消更新');
     };
 
-    async function updateAllVocabulariesNew() {
+    if (importStatus && typeof MutationObserver !== 'undefined') {
+        const updateErrorObserver = new MutationObserver(() => {
+            syncUpdateErrorFromImportStatus();
+        });
+        updateErrorObserver.observe(importStatus, {
+            attributes: true,
+            attributeFilter: ['class'],
+            childList: true,
+            characterData: true,
+            subtree: true
+        });
+    }
+
+async function updateAllVocabulariesNew() {
         if (!updateAllBtn) {
             return;
         }
         updateInProgress = true;
+        setUpdateError('');
         updateAllBtn.disabled = true;
         importStatus.textContent = '正在更新词库...';
         importStatus.className = 'import-status importing';
@@ -2372,6 +2562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             'disableAnnotationUnderline',
             'disableAnnotationTooltip',
             'smartSkipCodeLinks',
+            'smartSkipEditableTextboxes',
             'searchProvider',
             'speechVoiceURI',
             'blockedWords',
@@ -2397,6 +2588,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const disableAnnotationUnderline = result.disableAnnotationUnderline === true;
         const disableAnnotationTooltip = result.disableAnnotationTooltip === true;
         const smartSkipCodeLinks = result.smartSkipCodeLinks !== false;
+        const smartSkipEditableTextboxes = result.smartSkipEditableTextboxes !== false;
         const searchProvider = result.searchProvider || 'youdao';
         const speechVoiceURI = result.speechVoiceURI || '';
         blockedWords = Array.isArray(result.blockedWords)
@@ -2455,6 +2647,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         updateHighlightControls(highlightMode);
         smartSkipCodeLinksToggle.checked = smartSkipCodeLinks;
+        if (smartSkipEditableTextboxesToggle) {
+            smartSkipEditableTextboxesToggle.checked = smartSkipEditableTextboxes;
+        }
+        if (result.smartSkipEditableTextboxes === undefined) {
+            await chrome.storage.local.set({smartSkipEditableTextboxes: true});
+            await notifyActiveTabs({
+                action: 'updateSmartSkipEditableTextboxes',
+                enabled: true
+            });
+        }
         if (searchProviderSelect) {
             searchProviderSelect.value = searchProvider;
         }
@@ -2466,6 +2668,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         if (favoritesSearchInput) {
             favoritesSearchInput.value = '';
+        }
+        if (vocabSearchInput) {
+            vocabSearchInput.value = '';
         }
         blockedSelected = new Set();
         favoritesSelected = new Set();
@@ -2493,13 +2698,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function displayFilesList(vocabList) {
-        fileCount.textContent = vocabList.length;
+        currentVocabList = Array.isArray(vocabList) ? vocabList : [];
+        const query = vocabSearchInput ? normalizeWord(vocabSearchInput.value) : '';
+        const filteredList = query
+            ? currentVocabList.filter(vocab => normalizeWord(vocab && vocab.name).includes(query))
+            : currentVocabList;
+        fileCount.textContent = filteredList.length;
         filesList.innerHTML = '';
-        if (vocabList.length === 0) {
+        if (filteredList.length === 0) {
             filesList.innerHTML = '<div class="empty-state">暂无导入的词库文件</div>';
             return;
         }
-        vocabList.forEach(vocab => {
+        filteredList.forEach(vocab => {
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
             const fileInfo = document.createElement('div');

@@ -26,12 +26,13 @@ let enToCnOrder = 'source-first';
 let speechVoiceURI = '';
 let disableAnnotationUnderline = false;
 let disableAnnotationTooltip = false;
-let highlightColorMode = 'auto';
+let highlightColorMode = 'none';
 let highlightColor = '#2196f3';
 let vocabularySet = new Set(); // 词汇集合，用于分词
 let languageStats = null; // {chineseCount, englishCount, chineseRatio, englishRatio, totalUnits, detected}
 let languageDetectDone = false;
 let smartSkipCodeLinks = true;
+let smartSkipEditableTextboxes = true;
 let dedupeMode = 'page'; // off | page | count
 let dedupeRepeatCount = 50;
 let dedupeSaveTimer = null;
@@ -87,6 +88,26 @@ function normalizeType(type) {
 function splitMeanings(translation) {
     if (!translation) return [];
     return translation.split(/[,，、；;]/).map(m => m.trim()).filter(m => m.length > 0);
+}
+
+function formatSourceName(name) {
+    return String(name || '').trim().replace(/\.json$/i, '');
+}
+
+function formatSourceList(sources) {
+    if (!Array.isArray(sources)) {
+        return [];
+    }
+    const seen = new Set();
+    return sources
+        .map(formatSourceName)
+        .filter((name) => {
+            if (!name || seen.has(name)) {
+                return false;
+            }
+            seen.add(name);
+            return true;
+        });
 }
 
 // 合并翻译：按词性分组，去重词义，记录来源
@@ -931,6 +952,11 @@ function processNode(node) {
     const baseExcludedTags = ['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT'];
     const smartExcludedTags = smartSkipCodeLinks ? ['A', 'CODE', 'PRE'] : [];
     const excludeTags = baseExcludedTags.concat(smartExcludedTags);
+    if (smartSkipEditableTextboxes && node.nodeType === Node.ELEMENT_NODE) {
+        if (isEditableElement(node)) {
+            return;
+        }
+    }
     if (node.nodeType === Node.ELEMENT_NODE && excludeTags.includes(node.tagName)) {
         return;
     }
@@ -961,12 +987,27 @@ function processNode(node) {
 function isInsideExcludedElement(node, excludeTags) {
     let current = node.parentNode;
     while (current && current.nodeType === Node.ELEMENT_NODE) {
+        if (smartSkipEditableTextboxes && isEditableElement(current)) {
+            return true;
+        }
         if (excludeTags.includes(current.tagName)) {
             return true;
         }
         current = current.parentNode;
     }
     return false;
+}
+
+function isEditableElement(element) {
+    if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+        return false;
+    }
+    if (element.isContentEditable === true) {
+        return true;
+    }
+    const role = typeof element.getAttribute === 'function' ? (element.getAttribute('role') || '') : '';
+    return role.toLowerCase() === 'textbox';
+
 }
 
 function isInsideCooked(node) {
@@ -1525,7 +1566,7 @@ function createTooltipContent(data, matchText) {
         blockedWordsSet.add(normalizedWord);
         blockButton.disabled = true;
         await persistBlockedWords();
-        if (displayMode !== 'off') {
+        if (displayMode !== 'off' && !isSiteBlocked) {
             stopProcessing();
             processedNodes = new WeakSet();
             startProcessing();
@@ -1592,10 +1633,13 @@ function createTooltipContent(data, matchText) {
         container.appendChild(phonetics);
     }
     if (data.sources && data.sources.length > 0) {
+        const sourceNames = formatSourceList(data.sources);
+        if (sourceNames.length > 0) {
         const sources = document.createElement('div');
         sources.className = 'vocab-sources';
-        sources.textContent = data.sources.join(', ');
+        sources.textContent = sourceNames.join(', ');
         container.appendChild(sources);
+        }
     }
     if (data.byType && Object.keys(data.byType).length > 0) {
         const translations = document.createElement('div');
@@ -1633,11 +1677,14 @@ function createTooltipContent(data, matchText) {
                 item.appendChild(document.createTextNode(meaningsText));
             }
             if (typeData.sources && typeData.sources.length > 0) {
+                const sourceNames = formatSourceList(typeData.sources);
+                if (sourceNames.length > 0) {
                 item.appendChild(document.createTextNode(' '));
                 const sources = document.createElement('span');
                 sources.className = 'vocab-type-sources';
-                sources.textContent = `[${typeData.sources.join(', ')}]`;
+                sources.textContent = `[${sourceNames.join(', ')}]`;
                 item.appendChild(sources);
+                }
             }
             translations.appendChild(item);
         });
@@ -1726,10 +1773,13 @@ function createTooltipContent(data, matchText) {
                 phraseItem.appendChild(phraseTrans);
             }
             if (phrase.sources && phrase.sources.length > 0) {
+                const sourceNames = formatSourceList(phrase.sources);
+                if (sourceNames.length > 0) {
                 const phraseSources = document.createElement('div');
                 phraseSources.className = 'vocab-phrase-sources';
-                phraseSources.textContent = `[${phrase.sources.join(', ')}]`;
+                phraseSources.textContent = `[${sourceNames.join(', ')}]`;
                 phraseItem.appendChild(phraseSources);
+                }
             }
             phrases.appendChild(phraseItem);
         });
@@ -2524,7 +2574,7 @@ function updateSiteBlockState() {
 // 加载设置
 async function loadSettings() {
     try {
-        const result = await chrome.storage.local.get(['displayMode', 'maxMatchesPerNode', 'minTextLength', 'annotationMode', 'highlightColorMode', 'highlightColor', 'cnToEnOrder', 'enToCnOrder', 'disableAnnotationUnderline', 'disableAnnotationTooltip', 'speechVoiceURI', 'smartSkipCodeLinks', 'searchProvider', 'phrasesExpanded', 'examplesExpanded', 'blockedWords', 'blockedWordsTrieIndex', 'favoriteWords', 'siteBlockRules', 'siteBlockIndex', 'dedupeMode', 'dedupeRepeatCount', 'dedupeCooldownSeconds', 'dedupeGlobalState', 'debugMode', TOOLTIP_SIZE_STORAGE_KEY]);
+        const result = await chrome.storage.local.get(['displayMode', 'maxMatchesPerNode', 'minTextLength', 'annotationMode', 'highlightColorMode', 'highlightColor', 'cnToEnOrder', 'enToCnOrder', 'disableAnnotationUnderline', 'disableAnnotationTooltip', 'speechVoiceURI', 'smartSkipCodeLinks', 'smartSkipEditableTextboxes', 'searchProvider', 'phrasesExpanded', 'examplesExpanded', 'blockedWords', 'blockedWordsTrieIndex', 'favoriteWords', 'siteBlockRules', 'siteBlockIndex', 'dedupeMode', 'dedupeRepeatCount', 'dedupeCooldownSeconds', 'dedupeGlobalState', 'debugMode', TOOLTIP_SIZE_STORAGE_KEY]);
         displayMode = result.displayMode || 'off';
         maxMatchesPerNode = normalizeMaxMatches(result.maxMatchesPerNode ?? maxMatchesPerNode);
         minTextLength = result.minTextLength ?? minTextLength;
@@ -2543,6 +2593,7 @@ async function loadSettings() {
         highlightColorMode = result.highlightColorMode ?? highlightColorMode;
         highlightColor = result.highlightColor ?? highlightColor;
         smartSkipCodeLinks = result.smartSkipCodeLinks !== false;
+        smartSkipEditableTextboxes = result.smartSkipEditableTextboxes !== false;
         searchProvider = result.searchProvider || 'youdao';
         blockedWordsSet = new Set(
             Array.isArray(result.blockedWords)
@@ -2717,7 +2768,7 @@ function handleScrollRescan() {
     }
     scrollRescanTimer = setTimeout(() => {
         scrollRescanTimer = null;
-        if (displayMode === 'off') {
+        if (displayMode === 'off' || isSiteBlocked) {
             return;
         }
         // 获取视口内的主要内容容器（包含知乎、微博等常见网站的选择器）
@@ -2764,13 +2815,16 @@ async function handleSpaNavigation(reason, _prevUrl, _nextUrl) {
     if (!isContentScriptActive()) {
         return;
     }
+    updateSiteBlockState();
+    if (isSiteBlocked || displayMode === 'off') {
+        stopProcessing();
+        return;
+    }
     languageDetectDone = false;
     logPageStatus('SPA nav ' + reason + ' mode:', getEffectiveMode());
-    if (displayMode !== 'off') {
-        await startProcessing({preserveDedupe: true});
-        const root = document.querySelector('.post-stream') || document.body;
-        scheduleSpaRescan(root);
-    }
+    await startProcessing({preserveDedupe: true});
+    const root = document.querySelector('.post-stream') || document.body;
+    scheduleSpaRescan(root);
 }
 
 function setupSpaNavigationListener() {
@@ -2820,6 +2874,9 @@ function clearSpaRescanTimers() {
 
 function forceReprocessContainer(container) {
     if (!container) {
+        return;
+    }
+    if (displayMode === 'off' || isSiteBlocked) {
         return;
     }
     // Allow reprocessing of updated SPA content.
@@ -3203,6 +3260,9 @@ function selectMatchesWithDistribution(matches, textLength, maxCount) {
 // ============== 配额与优先级相关函数结束=========
 // ============== 调度相关函数=========
 function enqueueNode(node) {
+    if (displayMode === 'off' || isSiteBlocked) {
+        return;
+    }
     if (!node || processedNodes.has(node) || pendingNodesSet.has(node)) {
         return;
     }
@@ -3239,6 +3299,10 @@ function cancelScheduledProcessing() {
 }
 
 function runProcessingQueue(deadline) {
+    if (displayMode === 'off' || isSiteBlocked) {
+        resetProcessingQueue();
+        return;
+    }
     processingScheduled = false;
     let processedCount = 0;
     while (pendingNodes.length > 0) {
@@ -3263,6 +3327,10 @@ function runProcessingQueue(deadline) {
 }
 
 function resetAndReprocess() {
+    if (displayMode === 'off' || isSiteBlocked) {
+        stopProcessing();
+        return;
+    }
     stopProcessing();
     processedNodes = new WeakSet();
     startProcessing();
@@ -3497,11 +3565,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === 'updateSpeechVoice') {
         speechVoiceURI = message.speechVoiceURI || '';
     } else if (message.action === 'updateHighlightColor') {
-        highlightColorMode = message.mode || 'auto';
+        highlightColorMode = message.mode || 'none';
         highlightColor = message.color || '#2196f3';
         applyHighlightColor(highlightColorMode, highlightColor);
     } else if (message.action === 'updateSmartSkipCodeLinks') {
         smartSkipCodeLinks = message.enabled !== false;
+        if (displayMode !== 'off') {
+            resetAndReprocess();
+        }
+    } else if (message.action === 'updateSmartSkipEditableTextboxes') {
+        smartSkipEditableTextboxes = message.enabled !== false;
         if (displayMode !== 'off') {
             resetAndReprocess();
         }
@@ -3541,6 +3614,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         updateSiteBlockState();
         if (isSiteBlocked) {
+            clearSpaRescanTimers();
             stopProcessing();
             return;
         }

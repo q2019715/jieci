@@ -138,6 +138,9 @@
           <button id="importBtn" class="btn btn-secondary">本地导入</button>
         </div>
         <span id="importStatus" class="import-status"></span>
+        <div class="word-search">
+          <input id="vocabSearchInput" type="text" placeholder="搜索已导入词库" aria-label="搜索已导入词库">
+        </div>
         <div id="filesList" class="files-list"></div>
       </div>
     </div>
@@ -360,6 +363,22 @@
           </div>
         </div>
 
+        <div class="setting-item smart-toggle-row">
+          <div class="setting-main">
+            <label for="smartSkipEditableTextboxes" class="setting-label">
+              <span class="label-text">智能跳过可编辑文本框</span>
+              <button class="help-icon" type="button" aria-label="帮助">
+                ?
+                <span class="help-tooltip">强烈建议开启，避免将正在编辑的输入区域内容进行改写（如富文本编辑器）</span>
+              </button>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="smartSkipEditableTextboxes">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
         <div class="setting-item stacked">
           <label for="minTextLength" class="setting-label">
             <span class="label-text">容器最小字数</span>
@@ -525,7 +544,7 @@
               <path fill="currentColor" d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.75V18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.25A7 7 0 0 0 12 2zm3 11.65-1 .58V17h-4v-2.77l-1-.58A5 5 0 1 1 15 13.65z"/>
             </svg>
           </span>
-          <span class="word-tip-text">可以配置在哪些网站上,站点不进行工作</span>
+          <span class="word-tip-text">可以配置在哪些网站上插件不进行工作</span>
         </div>
         <div class="word-toolbar">
           <button id="siteBlockSelectAll" class="btn btn-secondary" type="button">全选</button>
@@ -605,6 +624,10 @@
         <button class="modal-close" id="modalClose">&times;</button>
       </div>
       <div class="modal-body" id="modalBody">
+        <div class="word-search">
+          <input id="dictSearchInput" type="text" placeholder="搜索服务器词库（可检索名称 介绍）" aria-label="搜索服务器词库">
+        </div>
+        <div id="dictTagFilters" class="dict-tag-filters" style="display: none;"></div>
         <div class="loading-spinner" id="loadingSpinner">加载中...</div>
         <div class="dict-list" id="dictList"></div>
         <div class="download-progress" id="downloadProgress" style="display: none;">
@@ -648,6 +671,7 @@
               <div class="progress-bar-fill" id="updateOverallBar"></div>
             </div>
           </div>
+          <div id="updateErrorMessage" class="update-error-message" style="display: none;"></div>
           <div class="download-actions" style="margin-top: 12px;">
             <button id="updateRetryBtn" class="btn btn-secondary" type="button" style="display: none;">重试</button>
             <button id="updateCancelBtn" class="btn btn-delete" type="button">取消</button>

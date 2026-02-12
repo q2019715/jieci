@@ -2,9 +2,9 @@
 
 :root {
   /* 高亮 */
-  --vocab-highlight-color: #2196f3;
-  --vocab-highlight-bg: rgba(33, 150, 243, 0.1);
-  --vocab-highlight-bg-strong: rgba(33, 150, 243, 0.2);
+  --vocab-highlight-color: inherit;
+  --vocab-highlight-bg: transparent;
+  --vocab-highlight-bg-strong: rgba(128, 128, 128, 0.1);
 
   /* Tooltip 主题（亮色） */
   --vt-bg: rgba(255, 255, 255, 0.72);
@@ -43,9 +43,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --vocab-highlight-color: #7fb7ff;
-    --vocab-highlight-bg: rgba(127, 183, 255, 0.18);
-    --vocab-highlight-bg-strong: rgba(127, 183, 255, 0.28);
+    --vocab-highlight-color: inherit;
+    --vocab-highlight-bg: transparent;
+    --vocab-highlight-bg-strong: rgba(128, 128, 128, 0.1);
 
     --vt-bg: rgba(30, 31, 34, 0.72);
     --vt-border: rgba(255, 255, 255, 0.12);
@@ -329,7 +329,7 @@
 }
 
 .vocab-tooltip .vocab-word {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
   color: var(--vocab-highlight-color);
   margin: 0;
