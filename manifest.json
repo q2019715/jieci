@@ -1,7 +1,7 @@
 ﻿{
     "manifest_version":  3,
     "name":  "__MSG_appName__",
-    "version":  "1.1.4",
+    "version":  "1.2.0",
     "description":  "__MSG_appDescription__",
     "permissions":  [
                         "storage",
@@ -35,13 +35,14 @@
                        "type":  "module"
                    },
     "content_security_policy":  {
-                                    "extension_pages":  "script-src \u0027self\u0027 \u0027wasm-unsafe-eval\u0027; object-src \u0027self\u0027"
+                                    "extension_pages":  "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://api.jieci.top"
                                 },
     "web_accessible_resources":  [
                                      {
                                          "resources":  [
-                                                           "vendor/jieba_rs_wasm.js",
-                                                           "vendor/jieba_rs_wasm_bg.wasm"
+                                                           "vendor/*.js",
+                                                           "vendor/*.wasm",
+                                                           "vendor/models/**/*"
                                                        ],
                                          "matches":  [
                                                          "\u003call_urls\u003e"

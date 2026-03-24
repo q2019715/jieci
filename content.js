@@ -1,8 +1,9 @@
 // content.js - 网页内容脚本，负责文本匹配和替换
 // by q2019715 https://www.q2019.com
 // for software https://jieci.top
+
 // ===========常量定义================
-let displayMode = 'off'; // 显示模式：'off'、'underline'、'annotation'
+let displayMode = 'off'; // 显示模式：'off'、'underline'、'annotation'、'replace'
 let searchProvider = 'youdao';
 let phrasesExpanded = false;
 let examplesExpanded = false;
@@ -11,6 +12,7 @@ let favoriteWordsSet = new Set();
 let blockedWordsTrie = null;
 let siteBlockRules = [];
 let siteBlockIndex = {exact: new Set(), wildcards: []};
+let siteBlockMode = 'blacklist';
 let isSiteBlocked = false;
 let vocabularyMap = new Map(); // 中文翻译 -> 英文单词的映射
 let processedNodes = new WeakSet(); // 记录已处理的节点
@@ -25,7 +27,8 @@ let cnToEnOrder = 'source-first';
 let enToCnOrder = 'source-first';
 let speechVoiceURI = '';
 let disableAnnotationUnderline = false;
-let disableAnnotationTooltip = false;
+let annotationWordCardPopupEnabled = true;
+let wordCardHighlightMatchedChinese = true;
 let highlightColorMode = 'none';
 let highlightColor = '#2196f3';
 let vocabularySet = new Set(); // 词汇集合，用于分词
@@ -44,6 +47,7 @@ let pendingNodes = [];
 let pendingNodesSet = new WeakSet();
 let processingScheduled = false;
 let processingHandle = null;
+let analyzedTextNodeSignatures = new WeakMap();
 const PROCESS_BATCH_LIMIT = 200;
 const PROCESS_IDLE_TIMEOUT_MS = 200;
 let initialProcessingLogged = false;
@@ -60,6 +64,14 @@ const SCROLL_RESCAN_DELAY_MS = 300;
 let diagSkipReasons = {quota: 0, minLength: 0, overflow: 0, noMatch: 0};
 let lastDiagReport = 0;
 
+// AI Configuration
+let aiMode = 'none'; // 'none', 'cpu', 'gpu', 'npu'
+let aiTrigger = 'all'; // 'conflict', 'all'
+let aiModelSource = 'cloud'; // 'local', 'cloud'
+let aiModelInfoUrl = 'https://api.jieci.top/model/onnx/info.json';
+let aiSimilarityThreshold = 0.25; // 相似度阈值，低于此值认为不匹配
+let aiProcessingDelay = 0; // AI 处理延迟，避免卡顿
+
 // ========== 工具函数 ==========
 function normalizeWord(word) {
     return String(word || '').trim().toLowerCase();
@@ -74,6 +86,147 @@ function isBlockedWord(word) {
         return isWordInTrie(normalized, blockedWordsTrie);
     }
     return blockedWordsSet.has(normalized);
+}
+
+// ========== AI Core Functions ==========
+
+function terminateAIWorker() {
+    // AI inference is unified in background.js.
+}
+
+
+function callAIBackgroundAnalyzeBatch(contextText, entries) {
+    return new Promise((resolve) => {
+        if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+            resolve({skipped: true});
+            return;
+        }
+        const requests = Array.isArray(entries)
+            ? entries.map((entry) => ({
+                contextText,
+                word: entry.word,
+                meanings: Array.isArray(entry.meanings) ? entry.meanings : [],
+                threshold: aiSimilarityThreshold
+            }))
+            : [];
+        chrome.runtime.sendMessage({
+            type: 'ai-analyze-batch',
+            mode: aiMode,
+            source: aiModelSource,
+            infoUrl: aiModelInfoUrl,
+            threshold: aiSimilarityThreshold,
+            requests,
+            debug: debugModeEnabled
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                diagLog('[AI-bg-batch] failed:', chrome.runtime.lastError);
+                resolve({error: true});
+                return;
+            }
+            if (!response || !response.ok || !Array.isArray(response.result)) {
+                resolve({error: true});
+                return;
+            }
+            resolve(response.result);
+        });
+    });
+}
+
+
+async function analyzeWordsWithAIBatch(contextText, entries) {
+    try {
+        const result = await callAIBackgroundAnalyzeBatch(contextText, entries);
+        if (!result || result.skipped || result.error || !Array.isArray(result)) {
+            return result || {error: true};
+        }
+        return result;
+    } catch (e) {
+        console.error('AI Batch Analysis Error:', e);
+        return {error: true};
+    }
+}
+
+async function processMatchesWithAI(text, matches, mode) {
+    if (aiMode === 'none' || matches.length === 0) return;
+
+    const batchEntries = [];
+    const batchTargets = [];
+
+    for (const match of matches) {
+        if (shouldSkipAnnotationDueToParen(text, match)) {
+            continue;
+        }
+
+        const data = match.data;
+        if (!data) continue;
+
+        let candidates = [];
+        if (mode === 'en-to-cn') {
+            if (!data.byType) continue;
+            const typeKeys = Object.keys(data.byType);
+            typeKeys.forEach(type => {
+                const meanings = data.byType[type].meanings;
+                if (meanings) candidates.push(...meanings);
+            });
+        } else if (mode === 'cn-to-en') {
+            if (data.word) candidates.push(data.word);
+        }
+
+        if (candidates.length === 0) continue;
+
+        let shouldRunAI = false;
+        if (aiTrigger === 'all') {
+            shouldRunAI = true;
+        } else if (aiTrigger === 'conflict') {
+            if (mode === 'en-to-cn') {
+                const typeKeys = Object.keys(data.byType || {});
+                shouldRunAI = typeKeys.length > 1 || candidates.length > 3;
+            } else {
+                shouldRunAI = true;
+            }
+        }
+
+        if (!shouldRunAI) {
+            continue;
+        }
+
+        batchEntries.push({
+            word: match.matchText,
+            meanings: candidates
+        });
+        batchTargets.push({match, candidates});
+    }
+
+    if (batchEntries.length > 0) {
+        await new Promise(r => setTimeout(r, aiProcessingDelay));
+        const results = await analyzeWordsWithAIBatch(text, batchEntries);
+        if (Array.isArray(results)) {
+            for (let i = 0; i < batchTargets.length; i++) {
+                const target = batchTargets[i];
+                const result = results[i] || {error: true};
+
+                if (result.skipped || result.error) {
+                    continue;
+                }
+
+                if (result.lowConfidence) {
+                    target.match.shouldSkip = true;
+                } else if (result.index !== -1 && typeof result.score === 'number') {
+                    target.match.aiScore = result.score;
+                    if (mode === 'en-to-cn') {
+                        target.match.selectedMeaning = target.candidates[result.index];
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove skipped
+    for (let i = matches.length - 1; i >= 0; i--) {
+        if (matches[i].shouldSkip) {
+            matches.splice(i, 1);
+        }
+    }
 }
 
 // ========= 工具函数结束 ==========
@@ -789,14 +942,14 @@ function formatInlineAnnotation(sourceText, targetText, order) {
     return `${sourceText}(${targetText})`;
 }
 
-function createHighlightSpan(matchText, data, posTag = null) {
+function createHighlightSpan(matchText, data, posTag = null, selectedMeaning = null, aiScore = null) {
     if (isBlockedWord(matchText)) {
         return document.createTextNode(matchText);
     }
     const span = document.createElement('span');
     span.className = 'vocab-highlight';
     span.dataset.originalText = matchText;
-    if (displayMode === 'annotation' && disableAnnotationUnderline) {
+    if ((displayMode === 'annotation' || displayMode === 'replace') && disableAnnotationUnderline) {
         span.classList.add('vocab-no-underline');
     }
     // 确定实际使用的标注模式
@@ -817,13 +970,33 @@ function createHighlightSpan(matchText, data, posTag = null) {
             const englishWord = data.word;
             span.textContent = formatInlineAnnotation(matchText, englishWord, cnToEnOrder);
         } else if (effectiveMode === 'en-to-cn') {
-            // 从合并后的 byType 获取翻译，优先使用推断的词性
-            const firstMeaning = getFirstMeaning(data, actualPOS);
+            // 如果有 AI 选择的最佳释义，优先使用
+            const firstMeaning = selectedMeaning || getFirstMeaning(data, actualPOS);
             span.textContent = formatInlineAnnotation(matchText, firstMeaning, enToCnOrder);
+        }
+    } else if (displayMode === 'replace') {
+        if (effectiveMode === 'cn-to-en') {
+            const replacedWord = data.word || matchText;
+            span.textContent = /\s$/.test(replacedWord) ? replacedWord : `${replacedWord} `;
+        } else if (effectiveMode === 'en-to-cn') {
+            const firstMeaning = selectedMeaning || getFirstMeaning(data, actualPOS);
+            span.textContent = firstMeaning || matchText;
+        } else {
+            span.textContent = matchText;
         }
     }
     // 保存 posTag 到 data 中，供 tooltip 使用
-    const dataWithPOS = {...data, _posTag: posTag};
+    const matchedMeaning = effectiveMode === 'cn-to-en'
+        ? String(matchText || '').trim()
+        : String(selectedMeaning || '').trim();
+    const dataWithPOS = {
+        ...data,
+        _posTag: posTag,
+        _aiScore: aiScore,
+        _selectedMeaning: selectedMeaning || '',
+        _matchedMeaning: matchedMeaning,
+        _effectiveMode: effectiveMode
+    };
     const showTooltip = () => {
         if (globalTooltipHideTimer) {
             clearTimeout(globalTooltipHideTimer);
@@ -885,7 +1058,7 @@ function createHighlightSpan(matchText, data, posTag = null) {
             hideGlobalTooltip();
         }, TOOLTIP_HIDE_DELAY_MS);
     };
-    const allowTooltip = !(displayMode === 'annotation' && disableAnnotationTooltip);
+    const allowTooltip = displayMode !== 'annotation' || annotationWordCardPopupEnabled;
     if (allowTooltip) {
         span.addEventListener('mouseenter', showTooltip);
         span.addEventListener('mouseleave', () => {
@@ -921,7 +1094,7 @@ function applyMatchesToTextNode(textNode, text, matches, effectiveMode, maxCount
         if (match.start > lastIndex) {
             fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.start)));
         }
-        const span = createHighlightSpan(match.matchText, match.data, match.posTag);
+        const span = createHighlightSpan(match.matchText, match.data, match.posTag, match.selectedMeaning, match.aiScore);
         fragment.appendChild(span);
         lastIndex = match.end;
     });
@@ -1109,10 +1282,16 @@ function processTextNode(textNode) {
     }
     const text = textNode.textContent;
     const effectiveMode = annotationMode === 'auto' ? actualAnnotationMode : annotationMode;
+    const analysisSignature = `${effectiveMode}|${text}`;
+    if (analyzedTextNodeSignatures.get(textNode) === analysisSignature) {
+        diagLog('Text node status:', 'dropped', 'reason:', 'analysis-cache-hit');
+        return;
+    }
+    analyzedTextNodeSignatures.set(textNode, analysisSignature);
     if (effectiveMode === 'cn-to-en') {
         // 使用词性标注获取带词性的分词结果
         pendingAsyncCount++; // 追踪异步处理
-        requestJiebaTags(text).then((tags) => {
+        requestJiebaTags(text).then(async (tags) => {
             if (!textNode.parentNode || textNode.textContent !== text) {
                 pendingAsyncCount--;
                 diagLog('Text node status:', 'dropped', 'reason:', 'stale-node');
@@ -1163,9 +1342,23 @@ function processTextNode(textNode) {
                         });
                     }
                 });
+                
+                removeMatchesFollowedByParen(text, matches);
+                if (matches.length > 0) {
+                     // Optimization: Only process top matches with AI to save resources
+                    const quota = getBlockQuotaRemaining(blockGroupKey);
+                    const limit = Math.max(6, quota * 2);
+                    if (matches.length > limit) {
+                        matches.sort((a, b) => b.priority - a.priority);
+                        matches.splice(limit);
+                    }
+                }
+                
+                await processMatchesWithAI(text, matches, effectiveMode);
+
             } else {
                 // Fallback: 使用 tokenize 或本地分词
-                requestJiebaTokens(text).then((tokens) => {
+                requestJiebaTokens(text).then(async (tokens) => {
                     if (!textNode.parentNode || textNode.textContent !== text) {
                         pendingAsyncCount--;
                         diagLog('Text node status:', 'dropped', 'reason:', 'stale-node');
@@ -1198,6 +1391,20 @@ function processTextNode(textNode) {
                                 });
                             }
                         });
+                        
+                        removeMatchesFollowedByParen(text, matches);
+                        if (matches.length > 0) {
+                            // Optimization: Only process top matches with AI to save resources
+                            const quota = getBlockQuotaRemaining(blockGroupKey);
+                            const limit = Math.max(6, quota * 2);
+                            if (matches.length > limit) {
+                                matches.sort((a, b) => b.priority - a.priority);
+                                matches.splice(limit);
+                            }
+                        }
+                        
+                        await processMatchesWithAI(text, matches, effectiveMode);
+
                     } else {
                         // Fallback: use local segmentation when jieba tokens are unavailable.
                         const segments = segmentChinese(text);
@@ -1230,6 +1437,19 @@ function processTextNode(textNode) {
                                 });
                             }
                         });
+                        
+                        removeMatchesFollowedByParen(text, matches);
+                        if (matches.length > 0) {
+                            // Optimization: Only process top matches with AI to save resources
+                            const quota = getBlockQuotaRemaining(blockGroupKey);
+                            const limit = Math.max(6, quota * 2);
+                            if (matches.length > limit) {
+                                matches.sort((a, b) => b.priority - a.priority);
+                                matches.splice(limit);
+                            }
+                        }
+                        
+                        await processMatchesWithAI(text, matches, effectiveMode);
                     }
                     const applyResult = applyMatchesToTextNode(textNode, text, matches, effectiveMode, remainingQuota);
                     consumeBlockQuota(blockGroupKey, applyResult.appliedCount);
@@ -1287,11 +1507,42 @@ function processTextNode(textNode) {
                 });
             }
         });
-        const applyResult = applyMatchesToTextNode(textNode, text, matches, effectiveMode, remainingQuota);
-        consumeBlockQuota(blockGroupKey, applyResult.appliedCount);
-        diagLog('Text node status:', applyResult.appliedCount > 0 ? 'kept' : 'dropped', 'reason:', applyResult.reason, 'applied:', applyResult.appliedCount);
-        const matchItems = matches.map(match => `${match.matchText}@${match.start}`);
-        diagLog('Matches (en-to-cn):', matches.length, 'items:', formatDiagList(matchItems));
+
+        removeMatchesFollowedByParen(text, matches);
+        // AI 语义分析集成
+        if (aiMode !== 'none' && matches.length > 0) {
+            // Optimization: Only process top matches with AI to save resources
+            const quota = getBlockQuotaRemaining(blockGroupKey);
+            const limit = Math.max(6, quota * 2); // Process at least 10, or 3x quota
+            if (matches.length > limit) {
+                matches.sort((a, b) => b.priority - a.priority);
+                // Keep the top ones for AI, discard the rest from AI processing?
+                // Actually, we should only run AI on the top candidates that are likely to be selected.
+                // However, 'applyMatchesToTextNode' does selection *after* AI filtering.
+                // So we can safely reduce the candidate pool here.
+                matches.splice(limit); 
+            }
+
+            pendingAsyncCount++;
+            (async () => {
+                try {
+                    await processMatchesWithAI(text, matches, effectiveMode);
+                    const applyResult = applyMatchesToTextNode(textNode, text, matches, effectiveMode, remainingQuota);
+                    consumeBlockQuota(blockGroupKey, applyResult.appliedCount);
+                    diagLog('Text node status:', applyResult.appliedCount > 0 ? 'kept' : 'dropped', 'reason:', applyResult.reason, 'applied:', applyResult.appliedCount);
+                    const matchItems = matches.map(match => `${match.matchText}@${match.start}`);
+                    diagLog('Matches (en-to-cn):', matches.length, 'items:', formatDiagList(matchItems));
+                } finally {
+                    pendingAsyncCount--;
+                }
+            })();
+        } else {
+            const applyResult = applyMatchesToTextNode(textNode, text, matches, effectiveMode, remainingQuota);
+            consumeBlockQuota(blockGroupKey, applyResult.appliedCount);
+            diagLog('Text node status:', applyResult.appliedCount > 0 ? 'kept' : 'dropped', 'reason:', applyResult.reason, 'applied:', applyResult.appliedCount);
+            const matchItems = matches.map(match => `${match.matchText}@${match.start}`);
+            diagLog('Matches (en-to-cn):', matches.length, 'items:', formatDiagList(matchItems));
+        }
     }
 }
 
@@ -1322,7 +1573,7 @@ let tooltipManualPositioned = false;
 let pointerTrackerAttached = false;
 let lastPointerPosition = null;
 const TOOLTIP_HIDE_DELAY_MS = 100;
-const TOOLTIP_SIZE_STORAGE_KEY = 'tooltipSize';
+const WORD_CARD_POPUP_SIZE_STORAGE_KEY = 'wordCardPopupSize';
 const TOOLTIP_SIZE_DEFAULT = {width: 360, height: 280};
 const TOOLTIP_SIZE_MIN = {width: 260, height: 200};
 const TOOLTIP_SIZE_MAX = {width: 600, height: 480};
@@ -1567,9 +1818,9 @@ function createTooltipContent(data, matchText) {
         blockButton.disabled = true;
         await persistBlockedWords();
         if (displayMode !== 'off' && !isSiteBlocked) {
-            stopProcessing();
-            processedNodes = new WeakSet();
-            startProcessing();
+            const owner = globalTooltipOwner;
+            hideGlobalTooltip(true);
+            restoreHighlightElement(owner);
         }
     });
     favoriteButton.addEventListener('click', async (event) => {
@@ -1599,19 +1850,52 @@ function createTooltipContent(data, matchText) {
     wordMain.appendChild(favoriteButton);
     wordMain.appendChild(speakButton);
     wordRow.appendChild(wordMain);
-    if (data._posTag) {
-        const posTag = data._posTag;
-        const posSpan = document.createElement('span');
-        posSpan.className = 'vocab-inferred-pos';
-        if (typeof posTag === 'object' && posTag.pos) {
-            const methodText = posTag.method === 'rule' ? '插件根据上下文推测在当前段落中这个词的词性（可能不准确）。本次推测原因 :' : '词库推断';
-            posSpan.title = posTag.rule ? `${methodText}: ${posTag.rule}` : methodText;
-            posSpan.textContent = String(posTag.pos).toUpperCase();
-            wordRow.appendChild(posSpan);
-        } else if (typeof posTag === 'string') {
-            posSpan.title = '插件根据上下文推测在当前段落中这个词的词性（可能不准确）。本次推测原因：使用jieba词性推导）';
-            posSpan.textContent = posTag.toUpperCase();
-            wordRow.appendChild(posSpan);
+    // 合并显示词性和 AI 标签
+    if (data._posTag || typeof data._aiScore === 'number') {
+        const infoSpan = document.createElement('span');
+        infoSpan.className = 'vocab-inferred-pos';
+        
+        let labelText = '';
+        let titleLines = [];
+        const isAi = typeof data._aiScore === 'number';
+
+        // 1. 处理 AI 信息 (样式和 Title)
+        if (isAi) {
+            const percentage = (data._aiScore * 100).toFixed(0) + '%';
+            titleLines.push(`AI 确信率: ${percentage}`);
+            // 如果有 AI 分数，使用 AI 标签的配色（蓝底蓝字）
+            infoSpan.style.backgroundColor = '#e3f2fd';
+            infoSpan.style.color = '#1565c0';
+        }
+
+        // 2. 处理词性信息 (文本和 Title)
+        if (data._posTag) {
+            const posTag = data._posTag;
+            let posLabel = '';
+            let posReason = '';
+            
+            if (typeof posTag === 'object' && posTag.pos) {
+                posLabel = String(posTag.pos).toUpperCase();
+                const methodText = posTag.method === 'rule' ? '插件推测' : '词库推断';
+                posReason = posTag.rule ? `${methodText}: ${posTag.rule}` : methodText;
+            } else if (typeof posTag === 'string') {
+                posLabel = posTag.toUpperCase();
+                posReason = '插件推测 (jieba)';
+            }
+            
+            labelText = posLabel; // 优先显示词性
+            if (posReason) {
+                titleLines.push(`词性推断理由: ${posReason}`);
+            }
+        } else if (isAi) {
+            // 如果只有 AI 没有词性（极少情况），显示 AI
+            labelText = 'AI';
+        }
+
+        if (labelText) {
+            infoSpan.textContent = labelText;
+            infoSpan.title = titleLines.join('\n');
+            wordRow.appendChild(infoSpan);
         }
     }
     container.appendChild(wordRow);
@@ -1662,8 +1946,16 @@ function createTooltipContent(data, matchText) {
                 return;
             }
             const displayType = typeData.type || '';
-            const meaningsText = Array.isArray(typeData.meanings) ? typeData.meanings.join('，') : '';
+            const meanings = Array.isArray(typeData.meanings)
+                ? typeData.meanings.map(item => String(item || '').trim()).filter(Boolean)
+                : [];
             const isMatched = inferredPOS && findMatchingType({[typeKey]: typeData}, inferredPOS) === typeKey;
+            const selectedMeaning = String(data._selectedMeaning || '').trim();
+            const matchedMeaning = String(data._matchedMeaning || selectedMeaning || '').trim();
+            const effectiveMode = String(data._effectiveMode || '');
+            const highlightMeaning = (effectiveMode === 'cn-to-en' && !wordCardHighlightMatchedChinese)
+                ? ''
+                : matchedMeaning;
             const item = document.createElement('div');
             item.className = `vocab-trans-item${isMatched ? ' vocab-trans-matched' : ''}`;
             if (displayType) {
@@ -1673,8 +1965,36 @@ function createTooltipContent(data, matchText) {
                 item.appendChild(typeSpan);
                 item.appendChild(document.createTextNode(' '));
             }
-            if (meaningsText) {
-                item.appendChild(document.createTextNode(meaningsText));
+            if (meanings.length > 0) {
+                const selectedIndex = highlightMeaning
+                    ? meanings.findIndex((meaning) => {
+                        if (meaning === highlightMeaning) {
+                            return true;
+                        }
+                        const subMeanings = meaning
+                            .split(/[,\uFF0C\u3001;\uFF1B]/)
+                            .map(item => item.trim())
+                            .filter(Boolean);
+                        return subMeanings.includes(highlightMeaning);
+                    })
+                    : -1;
+                if (selectedIndex >= 0) {
+                    meanings.forEach((meaning, index) => {
+                        if (index > 0) {
+                            item.appendChild(document.createTextNode('，'));
+                        }
+                        if (index === selectedIndex) {
+                            const hitMeaning = document.createElement('strong');
+                            hitMeaning.className = 'vocab-meaning-hit';
+                            hitMeaning.textContent = meaning;
+                            item.appendChild(hitMeaning);
+                        } else {
+                            item.appendChild(document.createTextNode(meaning));
+                        }
+                    });
+                } else {
+                    item.appendChild(document.createTextNode(meanings.join('，')));
+                }
             }
             if (typeData.sources && typeData.sources.length > 0) {
                 const sourceNames = formatSourceList(typeData.sources);
@@ -1923,7 +2243,7 @@ function saveTooltipSize(size) {
         clearTimeout(tooltipSizeSaveTimer);
     }
     tooltipSizeSaveTimer = setTimeout(() => {
-        chrome.storage.local.set({[TOOLTIP_SIZE_STORAGE_KEY]: clamped}).catch(() => {
+        chrome.storage.local.set({[WORD_CARD_POPUP_SIZE_STORAGE_KEY]: clamped}).catch(() => {
         });
     }, 200);
 }
@@ -2283,6 +2603,16 @@ function hideGlobalTooltip(force = false) {
     isHoveringTooltip = false;
 }
 
+function restoreHighlightElement(highlightElement) {
+    if (!highlightElement || !highlightElement.classList || !highlightElement.classList.contains('vocab-highlight')) {
+        return false;
+    }
+    const originalText = highlightElement.dataset.originalText;
+    const text = originalText || highlightElement.textContent.replace(/\([^)]+\)$/, '');
+    highlightElement.replaceWith(text);
+    return true;
+}
+
 function repositionGlobalTooltip() {
     if (!isTooltipVisible || !globalTooltip || !globalTooltipOwner) {
         return;
@@ -2549,16 +2879,19 @@ function evaluateSiteBlocked(hostname) {
     if (!host) {
         return false;
     }
-    if (siteBlockIndex.exact.has(host)) {
-        return true;
-    }
+    const matchedExact = siteBlockIndex.exact.has(host);
     const hostParts = host.split('.').length;
-    return siteBlockIndex.wildcards.some(({suffix, parts}) => {
+    const matchedWildcard = siteBlockIndex.wildcards.some(({suffix, parts}) => {
         if (hostParts <= parts) {
             return false;
         }
         return host.endsWith(`.${suffix}`);
     });
+    const matched = matchedExact || matchedWildcard;
+    if (siteBlockMode === 'whitelist') {
+        return !matched;
+    }
+    return matched;
 }
 
 function updateSiteBlockState() {
@@ -2574,13 +2907,20 @@ function updateSiteBlockState() {
 // 加载设置
 async function loadSettings() {
     try {
-        const result = await chrome.storage.local.get(['displayMode', 'maxMatchesPerNode', 'minTextLength', 'annotationMode', 'highlightColorMode', 'highlightColor', 'cnToEnOrder', 'enToCnOrder', 'disableAnnotationUnderline', 'disableAnnotationTooltip', 'speechVoiceURI', 'smartSkipCodeLinks', 'smartSkipEditableTextboxes', 'searchProvider', 'phrasesExpanded', 'examplesExpanded', 'blockedWords', 'blockedWordsTrieIndex', 'favoriteWords', 'siteBlockRules', 'siteBlockIndex', 'dedupeMode', 'dedupeRepeatCount', 'dedupeCooldownSeconds', 'dedupeGlobalState', 'debugMode', TOOLTIP_SIZE_STORAGE_KEY]);
+        const result = await chrome.storage.local.get(['displayMode', 'maxMatchesPerNode', 'minTextLength', 'annotationMode', 'highlightColorMode', 'highlightColor', 'cnToEnOrder', 'enToCnOrder', 'disableAnnotationUnderline', 'annotationWordCardPopupEnabled', 'wordCardHighlightMatchedChinese', 'speechVoiceURI', 'smartSkipCodeLinks', 'smartSkipEditableTextboxes', 'searchProvider', 'phrasesExpanded', 'examplesExpanded', 'blockedWords', 'blockedWordsTrieIndex', 'favoriteWords', 'siteBlockRules', 'siteBlockIndex', 'siteBlockMode', 'dedupeMode', 'dedupeRepeatCount', 'dedupeCooldownSeconds', 'dedupeGlobalState', 'debugMode', WORD_CARD_POPUP_SIZE_STORAGE_KEY, 'aiMode', 'aiModelSource', 'aiModelInfoUrl', 'aiTrigger', 'aiSimilarityThreshold', 'aiProcessingDelay']);
         displayMode = result.displayMode || 'off';
         maxMatchesPerNode = normalizeMaxMatches(result.maxMatchesPerNode ?? maxMatchesPerNode);
         minTextLength = result.minTextLength ?? minTextLength;
         debugModeEnabled = result.debugMode === true;
-        if (result[TOOLTIP_SIZE_STORAGE_KEY]) {
-            tooltipSize = clampTooltipSize(result[TOOLTIP_SIZE_STORAGE_KEY]);
+        // AI Settings
+        aiMode = result.aiMode || 'none';
+        aiModelSource = result.aiModelSource || 'cloud';
+        aiModelInfoUrl = result.aiModelInfoUrl || 'https://api.jieci.top/model/onnx/info.json';
+        aiTrigger = result.aiTrigger || 'all';
+        aiSimilarityThreshold = result.aiSimilarityThreshold !== undefined ? Number(result.aiSimilarityThreshold) : 0.25;
+        aiProcessingDelay = result.aiProcessingDelay !== undefined ? Number(result.aiProcessingDelay) : 0;
+        if (result[WORD_CARD_POPUP_SIZE_STORAGE_KEY]) {
+            tooltipSize = clampTooltipSize(result[WORD_CARD_POPUP_SIZE_STORAGE_KEY]);
         } else {
             tooltipSize = {...TOOLTIP_SIZE_DEFAULT};
         }
@@ -2588,7 +2928,8 @@ async function loadSettings() {
         cnToEnOrder = result.cnToEnOrder || 'source-first';
         enToCnOrder = result.enToCnOrder || 'source-first';
         disableAnnotationUnderline = result.disableAnnotationUnderline === true;
-        disableAnnotationTooltip = result.disableAnnotationTooltip === true;
+        annotationWordCardPopupEnabled = result.annotationWordCardPopupEnabled !== false;
+        wordCardHighlightMatchedChinese = result.wordCardHighlightMatchedChinese !== false;
         speechVoiceURI = result.speechVoiceURI || '';
         highlightColorMode = result.highlightColorMode ?? highlightColorMode;
         highlightColor = result.highlightColor ?? highlightColor;
@@ -2604,6 +2945,7 @@ async function loadSettings() {
         siteBlockRules = Array.isArray(result.siteBlockRules)
             ? result.siteBlockRules.map(normalizeHost).filter(Boolean)
             : [];
+        siteBlockMode = result.siteBlockMode === 'whitelist' ? 'whitelist' : 'blacklist';
         if (result.siteBlockIndex && Array.isArray(result.siteBlockIndex.exact) && Array.isArray(result.siteBlockIndex.wildcards)) {
             siteBlockIndex = {
                 exact: new Set(result.siteBlockIndex.exact),
@@ -2907,8 +3249,22 @@ function shouldSkipAnnotationDueToParen(text, match) {
     if (!text || !match) {
         return false;
     }
-    const nextChar = text[match.end];
-    return nextChar === '(';
+    const tail = text.slice(match.end);
+    return /^\s*[(（]/.test(tail);
+}
+
+function removeMatchesFollowedByParen(text, matches) {
+    if (!Array.isArray(matches) || matches.length === 0) {
+        return 0;
+    }
+    let removed = 0;
+    for (let i = matches.length - 1; i >= 0; i--) {
+        if (shouldSkipAnnotationDueToParen(text, matches[i])) {
+            matches.splice(i, 1);
+            removed++;
+        }
+    }
+    return removed;
 }
 // ===============读页面内容变化相关函数结束===============
 // ==============Trie树相关代码==================
@@ -3333,6 +3689,7 @@ function resetAndReprocess() {
     }
     stopProcessing();
     processedNodes = new WeakSet();
+    analyzedTextNodeSignatures = new WeakMap();
     startProcessing();
 }
 
@@ -3349,6 +3706,7 @@ async function startProcessing(options = {}) {
     pendingAsyncCount = 0; // 重置异步计数
     clearFinalLogTimer();
     processedNodes = new WeakSet();
+    analyzedTextNodeSignatures = new WeakMap();
     if (!preserveDedupe) {
         resetDedupeState();
     }
@@ -3381,6 +3739,7 @@ async function startProcessing(options = {}) {
                     if (isInsideVocabHighlight(mutation.target) || isInsideVocabTooltip(mutation.target)) {
                         return;
                     }
+                    analyzedTextNodeSignatures.delete(mutation.target);
                     processedNodes.delete(mutation.target);
                     enqueueNode(mutation.target);
                 }
@@ -3553,15 +3912,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
     } else if (message.action === 'updateAnnotationUnderline') {
         disableAnnotationUnderline = message.disabled === true;
-        if (displayMode === 'annotation') {
+        if (displayMode === 'annotation' || displayMode === 'replace') {
             resetAndReprocess();
         }
-    } else if (message.action === 'updateAnnotationTooltip') {
-        disableAnnotationTooltip = message.disabled === true;
+    } else if (message.action === 'updateAnnotationWordCardPopup') {
+        annotationWordCardPopupEnabled = message.enabled !== false;
         if (displayMode === 'annotation') {
             hideGlobalTooltip();
             resetAndReprocess();
         }
+    } else if (message.action === 'updateWordCardMeaningHighlight') {
+        wordCardHighlightMatchedChinese = message.enabled !== false;
     } else if (message.action === 'updateSpeechVoice') {
         speechVoiceURI = message.speechVoiceURI || '';
     } else if (message.action === 'updateHighlightColor') {
@@ -3621,6 +3982,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (displayMode !== 'off') {
             resetAndReprocess();
         }
+    } else if (message.action === 'updateSiteBlockMode') {
+        siteBlockMode = message.mode === 'whitelist' ? 'whitelist' : 'blacklist';
+        updateSiteBlockState();
+        if (isSiteBlocked) {
+            clearSpaRescanTimers();
+            stopProcessing();
+            return;
+        }
+        if (displayMode !== 'off') {
+            resetAndReprocess();
+        }
     } else if (message.action === 'getPageHost') {
         sendResponse({host: window.location.hostname || ''});
     } else if (message.action === 'updateDedupeMode') {
@@ -3651,7 +4023,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === 'updateDebugMode') {
         debugModeEnabled = message.enabled === true;
         console.log('[jieci] 调试模式:', debugModeEnabled ? '开启' : '关闭');
-    } else if (message.action === 'resetTooltipSize') {
+    } else if (message.action === 'resetWordCardPopupSize') {
         tooltipSize = {...TOOLTIP_SIZE_DEFAULT};
         if (globalTooltip) {
             applyTooltipSize(globalTooltip, tooltipSize);
@@ -3664,6 +4036,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             annotationMode,
             actualAnnotationMode
         });
+    } else if (message.action === 'updateAIMode') {
+        const prevMode = aiMode;
+        aiMode = message.mode;
+        diagLog('?? AI ??:', aiMode);
+        if (prevMode !== aiMode) {
+            terminateAIWorker();
+        }
+        if (prevMode !== aiMode && displayMode !== 'off') {
+            resetAndReprocess();
+        }
+    } else if (message.action === 'updateAIModelSource') {
+        aiModelSource = message.source || 'cloud';
+        aiModelInfoUrl = message.infoUrl || aiModelInfoUrl || 'https://api.jieci.top/model/onnx/info.json';
+        terminateAIWorker();
+        if (aiMode !== 'none' && displayMode !== 'off') {
+            resetAndReprocess();
+        }
+    } else if (message.action === 'updateAITrigger') {
+        aiTrigger = message.trigger;
+        diagLog('更新 AI 触发条件:', aiTrigger);
+        if (aiMode !== 'none' && displayMode !== 'off') {
+            resetAndReprocess();
+        }
+    } else if (message.action === 'updateAIThreshold') {
+        aiSimilarityThreshold = message.threshold;
+        diagLog('更新 AI 阈值:', aiSimilarityThreshold);
+        if (aiMode !== 'none' && displayMode !== 'off') {
+            resetAndReprocess();
+        }
+    } else if (message.action === 'updateAIDelay') {
+        aiProcessingDelay = message.delay;
+        diagLog('更新 AI 延迟:', aiProcessingDelay);
     }
 });
 // 页面加载完成后的额外检查
@@ -3676,3 +4080,6 @@ window.addEventListener('load', () => {
     }
 });
 
+window.addEventListener('beforeunload', () => {
+    terminateAIWorker();
+});

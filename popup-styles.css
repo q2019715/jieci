@@ -249,7 +249,7 @@ h2 {
   text-align: center;
 }
 
-/* 控制开关区 */
+/* æ§å¶å¼å³åº */
 .control-section {
   display: flex;
   align-items: center;
@@ -281,6 +281,64 @@ h2 {
   color: #333;
   font-weight: 500;
   margin-right: 15px;
+}
+
+#siteBlockQuickCard {
+  isolation: isolate;
+}
+
+#siteBlockQuickCard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(33, 150, 243, 0.04) 0%, rgba(33, 150, 243, 0.08) 100%);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 2000ms linear;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+#siteBlockQuickCard.is-hover-progress::before {
+  transform: scaleX(1);
+}
+
+.site-block-actions {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.site-block-corner-btn {
+  position: absolute;
+  right: -12px;
+  bottom: -12px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: #4a4a4a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: none;
+  padding: 0;
+  line-height: 1;
+  opacity: 1;
+}
+
+.site-block-corner-btn:hover {
+  background: transparent;
+  color: #2f2f2f;
+  opacity: 1;
+}
+
+.site-block-corner-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 
 .quick-grid {
@@ -344,7 +402,7 @@ h2 {
   color: #666;
 }
 
-/* 三态滑动开关 */
+/* ä¸ææ»å¨å¼å?*/
 .mode-slider-container {
   position: relative;
   flex: 1;
@@ -457,7 +515,7 @@ h2 {
   color: #4caf50;
 }
 
-/* 开关按钮样式 */
+/* å¼å³æé®æ ·å¼?*/
 .switch {
   position: relative;
   display: inline-block;
@@ -504,7 +562,7 @@ input:checked + .slider:before {
   transform: translateX(24px);
 }
 
-/* 导入控制 */
+/* å¯¼å¥æ§å¶ */
 .import-controls {
   display: flex;
   align-items: center;
@@ -528,7 +586,7 @@ input:checked + .slider:before {
   color: #f44336;
 }
 
-/* 词库管理区域 */
+/* è¯åºç®¡çåºå */
 .vocabulary-section {
   background: white;
   border-radius: 8px;
@@ -546,7 +604,7 @@ input:checked + .slider:before {
   overflow-y: auto;
 }
 
-/* 设置区域 */
+/* è®¾ç½®åºå */
 .settings-section {
   background: white;
   border-radius: 8px;
@@ -708,6 +766,34 @@ input:checked + .slider:before {
   width: 100%;
 }
 
+.settings-content.settings-list .setting-divider {
+  position: relative;
+  margin: 6px 0;
+  padding: 6px 0;
+  text-align: left;
+  color: #9aa0a6;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.settings-content.settings-list .setting-divider::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid #eee;
+}
+
+.settings-content.settings-list .setting-divider::after {
+  bottom: 0;
+}
+
+.settings-content.settings-list .setting-divider > span {
+  position: relative;
+  z-index: 1;
+  padding: 0 2px 0 1em;
+}
+
 .setting-item.mode-setting {
   flex-direction: column;
   align-items: stretch;
@@ -764,6 +850,7 @@ input:checked + .slider:before {
   font-size: 12px;
   line-height: 1.4;
   white-space: normal;
+  text-align: left;
   width: max-content;
   max-width: 240px;
   opacity: 0;
@@ -771,9 +858,7 @@ input:checked + .slider:before {
   z-index: 9999;
 }
 
-.help-icon:hover .help-tooltip,
-.help-icon.is-visible .help-tooltip,
-.help-icon:focus-visible .help-tooltip {
+.help-icon.is-visible .help-tooltip {
   opacity: 1;
 }
 
@@ -918,7 +1003,17 @@ input:checked + .slider:before {
   margin-left: 100px;
 }
 
-/* 按钮样式 */
+.ai-mode-error-hint {
+  color: #c62828;
+  background: #ffebee;
+  border: 1px solid #ef9a9a;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-left: 0;
+  margin-top: 8px;
+}
+
+/* æé®æ ·å¼ */
 .btn {
   padding: 8px 16px;
   border: none;
@@ -951,7 +1046,7 @@ input:checked + .slider:before {
   background: #d32f2f;
 }
 
-/* 文件列表 */
+/* æä»¶åè¡¨ */
 .file-item {
   display: flex;
   justify-content: space-between;
@@ -1010,7 +1105,7 @@ input:checked + .slider:before {
   font-size: 13px;
 }
 
-/* 统计信息 */
+/* ç»è®¡ä¿¡æ¯ */
 .stats-section {
   background: white;
   padding: 15px;
@@ -1048,7 +1143,7 @@ input:checked + .slider:before {
   font-weight: 600;
 }
 
-/* 滚动条样式 */
+/* æ»å¨æ¡æ ·å¼?*/
 .files-list::-webkit-scrollbar {
   width: 6px;
 }
@@ -1067,7 +1162,7 @@ input:checked + .slider:before {
   background: #999;
 }
 
-/* 模态框样式 */
+/* æ¨¡ææ¡æ ·å¼ */
 .modal {
   display: none;
   position: fixed;
@@ -1274,6 +1369,40 @@ input:checked + .slider:before {
   margin-top: 12px;
 }
 
+.ai-model-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.ai-model-header-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-model-header .download-actions.ai-model-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 0;
+}
+
+#aiDownloadBtn,
+#aiUninstallBtn {
+  width: 190px;
+  min-width: 190px;
+  height: 34px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  line-height: 1;
+}
+
 #updateModal .download-actions {
   width: 100%;
   align-items: center;
@@ -1334,6 +1463,54 @@ input:checked + .slider:before {
 .dict-list::-webkit-scrollbar-thumb:hover,
 .modal-body::-webkit-scrollbar-thumb:hover {
   background: #999;
+}
+
+.site-import-choice {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.site-import-choice .btn {
+  flex: 1;
+}
+
+.site-import-pane {
+  margin-top: 8px;
+}
+
+.site-import-hint {
+  margin: 0 0 8px 0;
+}
+
+.site-import-textarea {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #222;
+  background: #fff;
+}
+
+.site-import-textarea:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.site-import-status {
+  margin-top: 10px;
+  min-height: 18px;
+  font-size: 12px;
+  color: #2b7a2b;
+}
+
+.site-import-status.error {
+  color: #c62828;
 }
 
 /* help link */
@@ -1399,6 +1576,16 @@ input:checked + .slider:before {
   min-width: 0;
 }
 
+.speech-test-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.speech-test-actions .btn {
+  flex: 1;
+}
+
 .word-toolbar .btn {
   min-width: 78px;
   height: 30px;
@@ -1451,6 +1638,77 @@ input:checked + .slider:before {
   background: #f1f1f1;
 }
 
+.site-rule-form {
+  margin-top: 10px;
+}
+
+.site-rule-label {
+  display: block;
+  font-size: 13px;
+  color: #333;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.site-rule-input {
+  width: 100%;
+  height: 34px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  background: #fff;
+  color: #222;
+}
+
+.site-rule-input:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.site-rule-options {
+  margin-top: 10px;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  background: #fafafa;
+  padding: 6px;
+}
+
+.site-rule-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #2b2b2b;
+  cursor: pointer;
+}
+
+.site-rule-option:hover {
+  background: #f0f5fb;
+}
+
+.site-rule-option input[type="radio"] {
+  margin-top: 2px;
+}
+
+.site-rule-footer {
+  margin-top: 12px;
+}
+
+.site-rule-status {
+  margin-top: 8px;
+  min-height: 18px;
+  font-size: 12px;
+  color: #2b7a2b;
+}
+
+.site-rule-status.error {
+  color: #c62828;
+}
+
 .word-left {
   display: flex;
   align-items: center;
@@ -1490,7 +1748,67 @@ input:checked + .slider:before {
   color: #a93226;
 }
 
-/* Dark mode (合并后的唯一一段，避免互相覆盖) */
+/* AI Benchmark & Settings Styles */
+.benchmark-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.benchmark-result {
+  flex: 1;
+  text-align: right;
+  font-size: 14px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.speed-value {
+  font-weight: bold;
+  color: #2196f3;
+  font-size: 16px;
+}
+
+.speed-unit {
+  font-size: 12px;
+  color: #999;
+}
+
+#aiTriggerSection, 
+#aiBenchmarkSection {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.setting-select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: #fff;
+  color: #333;
+  font-size: 14px;
+  margin-top: 8px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.setting-select:hover {
+  border-color: #2196f3;
+}
+
+.setting-select:focus {
+  border-color: #2196f3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+/* Dark mode (åå¹¶åçå¯ä¸ä¸æ®µï¼é¿åäºç¸è¦ç) */
 @media (prefers-color-scheme: dark) {
   body {
     background: #1f2226;
@@ -1883,6 +2201,17 @@ input:checked + .slider:before {
     box-shadow: 0 0 0 2px rgba(127, 183, 255, 0.2);
   }
 
+  .site-import-textarea {
+    background: #1f2226;
+    color: #e6e6e6;
+    border-color: #3a3d43;
+  }
+
+  .site-import-textarea:focus {
+    border-color: #7fb7ff;
+    box-shadow: 0 0 0 2px rgba(127, 183, 255, 0.2);
+  }
+
   .words-list {
     background: #1f2226;
     border-color: #3a3d43;
@@ -1928,6 +2257,56 @@ input:checked + .slider:before {
 
   .quick-subtitle {
     color: #9aa0a6;
+  }
+
+  .setting-select {
+    background: #1f2226;
+    color: #e6e6e6;
+    border-color: #3a3d43;
+  }
+
+  .setting-select:hover,
+  .setting-select:focus {
+    border-color: #7fb7ff;
+  }
+
+  .setting-select:focus {
+    box-shadow: 0 0 0 2px rgba(127, 183, 255, 0.2);
+  }
+
+  .site-rule-label {
+    color: #e0e0e0;
+  }
+
+  .site-rule-input {
+    background: #1f2226;
+    color: #e6e6e6;
+    border-color: #3a3d43;
+  }
+
+  .site-rule-input:focus {
+    border-color: #7fb7ff;
+    box-shadow: 0 0 0 2px rgba(127, 183, 255, 0.2);
+  }
+
+  .site-rule-options {
+    background: #2a2d32;
+    border-color: #3a3d43;
+  }
+
+  .site-rule-option {
+    color: #e6e6e6;
+  }
+
+  .site-rule-option:hover {
+    background: #2f3338;
+  }
+
+  .ai-mode-error-hint,
+  .update-error-message {
+    background: #4a2b2b;
+    border-color: #7a4343;
+    color: #ffb0a6;
   }
 
   #pageMain .control-section {

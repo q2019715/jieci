@@ -1,4 +1,6 @@
 // popup.js - settings logic
+// https://www.q2019.com
+// by q2019
 // Trie树构建（用于预处理词库）
 class TrieNode {
     constructor() {
@@ -58,58 +60,39 @@ function buildChineseTrieIndex(vocabularies) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const titleLink = document.getElementById('titleLink');
+    const byId = (id) => document.getElementById(id);
+    const titleLink = byId('titleLink');
     if (titleLink) {
         titleLink.addEventListener('click', () => {
             chrome.tabs.create({url: 'https://jieci.top'});
         });
     }
-    const displayModeSlider = document.getElementById('displayModeSlider');
+    const displayModeSlider = byId('displayModeSlider');
     const displayModeThumb = displayModeSlider.closest('.mode-slider-container').querySelector('.mode-slider-thumb');
     const displayModeLabels = displayModeSlider.closest('.mode-slider-container').querySelectorAll('.mode-label');
-    const annotationModeSlider = document.getElementById('annotationModeSlider');
+    const annotationModeSlider = byId('annotationModeSlider');
     const annotationModeThumb = annotationModeSlider.closest('.mode-slider-container').querySelector('.mode-slider-thumb');
     const annotationModeLabels = annotationModeSlider.closest('.mode-slider-container').querySelectorAll('.mode-label');
-    const dedupeModeSlider = document.getElementById('dedupeModeSlider');
+    const dedupeModeSlider = byId('dedupeModeSlider');
     const dedupeModeThumb = dedupeModeSlider.closest('.mode-slider-container').querySelector('.mode-slider-thumb');
     const dedupeModeLabels = dedupeModeSlider.closest('.mode-slider-container').querySelectorAll('.mode-label');
-    const advancedToggle = document.getElementById('advancedToggle');
-    const vocabularyToggle = document.getElementById('vocabularyToggle');
-    const vocabularyContent = document.getElementById('vocabularyContent');
-    const pageMain = document.getElementById('pageMain');
-    const pageVocab = document.getElementById('pageVocab');
-    const pageAdvanced = document.getElementById('pageAdvanced');
-    const pageStyle = document.getElementById('pageStyle');
-    const pageAnnotation = document.getElementById('pageAnnotation');
-    const pageSearch = document.getElementById('pageSearch');
-    const pageBlocked = document.getElementById('pageBlocked');
-    const pageFavorites = document.getElementById('pageFavorites');
-    const pageSiteBlock = document.getElementById('pageSiteBlock');
-    const pageAbout = document.getElementById('pageAbout');
-    const vocabBack = document.getElementById('vocabBack');
-    const advancedBack = document.getElementById('advancedBack');
-    const styleNav = document.getElementById('styleNav');
-    const annotationNav = document.getElementById('annotationNav');
-    const searchNav = document.getElementById('searchNav');
-    const blockedNav = document.getElementById('blockedNav');
-    const favoritesNav = document.getElementById('favoritesNav');
-    const vocabularyNav = document.getElementById('vocabularyNav');
-    const siteBlockNav = document.getElementById('siteBlockNav');
-    const aboutNav = document.getElementById('aboutNav');
-    const styleBack = document.getElementById('styleBack');
-    const annotationBack = document.getElementById('annotationBack');
-    const searchBack = document.getElementById('searchBack');
-    const blockedBack = document.getElementById('blockedBack');
-    const favoritesBack = document.getElementById('favoritesBack');
-    const siteBlockBack = document.getElementById('siteBlockBack');
-    const aboutBack = document.getElementById('aboutBack');
-    const aboutVersion = document.getElementById('aboutVersion');
-    const oobe = document.getElementById('oobe');
-    const oobeNext1 = document.getElementById('oobeNext1');
-    const oobeNext2 = document.getElementById('oobeNext2');
-    const oobeOpenDownload = document.getElementById('oobeOpenDownload');
-    const oobeGoExample = document.getElementById('oobeGoExample');
-    const oobeSkip = document.getElementById('oobeSkip');
+    const siteBlockModeSlider = byId('siteBlockModeSlider');
+    const siteBlockModeThumb = siteBlockModeSlider ? siteBlockModeSlider.closest('.mode-slider-container').querySelector('.mode-slider-thumb') : null;
+    const siteBlockModeLabels = siteBlockModeSlider ? siteBlockModeSlider.closest('.mode-slider-container').querySelectorAll('.mode-label') : [];
+    const advancedToggle = byId('advancedToggle');
+    const vocabularyToggle = byId('vocabularyToggle');
+    const vocabularyContent = byId('vocabularyContent');
+    const [pageMain, pageVocab, pageAdvanced, pageStyle, pageAnnotation, pageSearch, pageBlocked, pageFavorites, pageSiteBlock, pageSiteRule, pageAbout, pageAISettings] =
+        ['pageMain', 'pageVocab', 'pageAdvanced', 'pageStyle', 'pageAnnotation', 'pageSearch', 'pageBlocked', 'pageFavorites', 'pageSiteBlock', 'pageSiteRule', 'pageAbout', 'pageAISettings'].map(byId);
+    const [vocabBack, advancedBack, styleNav, annotationNav, searchNav, blockedNav, favoritesNav, vocabularyNav, siteBlockNav, aboutNav, aiSettingsBack, styleBack, annotationBack, searchBack, blockedBack, favoritesBack, siteBlockBack, siteRuleBack, aboutBack] =
+        ['vocabBack', 'advancedBack', 'styleNav', 'annotationNav', 'searchNav', 'blockedNav', 'favoritesNav', 'vocabularyNav', 'siteBlockNav', 'aboutNav', 'aiSettingsBack', 'styleBack', 'annotationBack', 'searchBack', 'blockedBack', 'favoritesBack', 'siteBlockBack', 'siteRuleBack', 'aboutBack'].map(byId);
+    const aboutVersion = byId('aboutVersion');
+    const oobe = byId('oobe');
+    const oobeNext1 = byId('oobeNext1');
+    const oobeNext2 = byId('oobeNext2');
+    const oobeOpenDownload = byId('oobeOpenDownload');
+    const oobeGoExample = byId('oobeGoExample');
+    const oobeSkip = byId('oobeSkip');
     const oobeSteps = Array.from(document.querySelectorAll('.oobe-step'));
     const oobeTitle1 = document.getElementById('oobeTitle1');
     const oobeText1 = document.getElementById('oobeText1');
@@ -146,13 +129,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const dedupeRepeatCountSlider = document.getElementById('dedupeRepeatCount');
     const dedupeRepeatCountLabel = document.getElementById('dedupeRepeatCountLabel');
     const clearDedupeCountsButton = document.getElementById('clearDedupeCounts');
+    const dedupeRepeatCountSetting = document.getElementById('dedupeRepeatCountSetting');
+    const clearDedupeCountsSetting = document.getElementById('clearDedupeCountsSetting');
     const highlightModeSelect = document.getElementById('highlightMode');
     const highlightColorInput = document.getElementById('highlightColor');
     const cnToEnOrderSelect = document.getElementById('cnToEnOrder');
     const enToCnOrderSelect = document.getElementById('enToCnOrder');
     const disableAnnotationUnderlineToggle = document.getElementById('disableAnnotationUnderline');
-    const disableAnnotationTooltipToggle = document.getElementById('disableAnnotationTooltip');
+    const annotationWordCardPopupEnabledToggle = document.getElementById('annotationWordCardPopupEnabled');
+    const wordCardHighlightMatchedChineseToggle = document.getElementById('wordCardHighlightMatchedChinese');
     const speechVoiceSelect = document.getElementById('speechVoiceSelect');
+    const testChineseVoiceBtn = document.getElementById('testChineseVoiceBtn');
+    const testEnglishVoiceBtn = document.getElementById('testEnglishVoiceBtn');
     const searchProviderSelect = document.getElementById('searchProviderSelect');
     const blockedSearchInput = document.getElementById('blockedSearchInput');
     const blockedSelectAll = document.getElementById('blockedSelectAll');
@@ -175,10 +163,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     const siteBlockImportBtn = document.getElementById('siteBlockImportBtn');
     const siteBlockExportBtn = document.getElementById('siteBlockExportBtn');
     const siteBlockImportInput = document.getElementById('siteBlockImportInput');
+    const siteBlockImportModal = document.getElementById('siteBlockImportModal');
+    const siteBlockImportModalClose = document.getElementById('siteBlockImportModalClose');
+    const siteBlockImportFromFileBtn = document.getElementById('siteBlockImportFromFileBtn');
+    const siteBlockImportManualBtn = document.getElementById('siteBlockImportManualBtn');
+    const siteBlockChooseFileBtn = document.getElementById('siteBlockChooseFileBtn');
+    const siteBlockImportFilePane = document.getElementById('siteBlockImportFilePane');
+    const siteBlockImportManualPane = document.getElementById('siteBlockImportManualPane');
+    const siteBlockManualInput = document.getElementById('siteBlockManualInput');
+    const siteBlockManualImportConfirm = document.getElementById('siteBlockManualImportConfirm');
+    const siteBlockImportStatus = document.getElementById('siteBlockImportStatus');
+    const siteBlockTipText = document.getElementById('siteBlockTipText');
     const smartSkipCodeLinksToggle = document.getElementById('smartSkipCodeLinks');
     const smartSkipEditableTextboxesToggle = document.getElementById('smartSkipEditableTextboxes');
     const resetPopupSizeButton = document.getElementById('resetPopupSize');
     const blockSiteBtn = document.getElementById('blockSiteBtn');
+    const siteBlockQuickCard = document.getElementById('siteBlockQuickCard');
+    const blockSiteRuleBtn = document.getElementById('blockSiteRuleBtn');
+    const siteRuleHostInput = document.getElementById('siteRuleHostInput');
+    const siteRulePageTitle = document.getElementById('siteRulePageTitle');
+    const siteRuleTipText = document.getElementById('siteRuleTipText');
+    const siteRuleParentLabel = document.getElementById('siteRuleParentLabel');
+    const siteRuleExactLabel = document.getElementById('siteRuleExactLabel');
+    const siteRuleSubdomainLabel = document.getElementById('siteRuleSubdomainLabel');
+    const siteRuleAddBtn = document.getElementById('siteRuleAddBtn');
+    const siteRuleStatus = document.getElementById('siteRuleStatus');
+    const siteBlockQuickTitle = document.getElementById('siteBlockQuickTitle');
+    const siteBlockQuickTooltip = document.getElementById('siteBlockQuickTooltip');
+    const annotationToAISettingsBtn = document.getElementById('annotationToAISettingsBtn');
     const quickFavorites = document.getElementById('quickFavorites');
     const quickBlocked = document.getElementById('quickBlocked');
     const quickVocab = document.getElementById('quickVocab');
@@ -191,6 +203,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let updateInProgress = false;
     let updateModalCloseTimer = null;
     let lastUpdateAction = null;
+    let siteRuleHoverTimer = null;
     // 下载相关元素
     const downloadBtn = document.getElementById('downloadBtn');
     const updateAllBtn = document.getElementById('updateAllBtn');
@@ -206,7 +219,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const progressPercent = document.getElementById('progressPercent');
     const progressBar = document.getElementById('progressBar');
     const SERVER_URL = 'https://api.jieci.top';
-    const TOOLTIP_SIZE_STORAGE_KEY = 'tooltipSize';
+    const WORD_CARD_POPUP_SIZE_STORAGE_KEY = 'wordCardPopupSize';
     const OOBE_COMPLETION_KEY = 'oobeCompletedCount';
     const OOBE_STEP_KEY = 'oobeStep';
     const OOBE_REQUIRED_COUNT = 1;
@@ -258,15 +271,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     helpIcons.forEach((icon) => {
         icon.addEventListener('mouseenter', () => showHelpTooltip(icon));
         icon.addEventListener('mouseleave', () => hideHelpTooltip(icon));
-        icon.addEventListener('focusin', () => showHelpTooltip(icon));
-        icon.addEventListener('focusout', () => hideHelpTooltip(icon));
         icon.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
         });
     });
     window.addEventListener('resize', scheduleOverflowUpdate);
-    const pages = [pageMain, pageVocab, pageAdvanced, pageStyle, pageAnnotation, pageSearch, pageBlocked, pageFavorites, pageSiteBlock, pageAbout];
+    const pages = [pageMain, pageVocab, pageAdvanced, pageStyle, pageAnnotation, pageSearch, pageBlocked, pageFavorites, pageSiteBlock, pageSiteRule, pageAbout, pageAISettings];
     const showPage = (page) => {
         pages.forEach((item) => {
             if (!item) {
@@ -407,12 +418,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const displayModeMap = {
         0: 'off',
         1: 'underline',
-        2: 'annotation'
+        2: 'annotation',
+        3: 'replace'
     };
     const reverseDisplayModeMap = {
         'off': 0,
         'underline': 1,
-        'annotation': 2
+        'annotation': 2,
+        'replace': 3
     };
     // 标注模式值映射
     const annotationModeMap = {
@@ -435,6 +448,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         'page': 1,
         'count': 2
     };
+    const siteBlockModeMap = {
+        0: 'blacklist',
+        1: 'whitelist'
+    };
+    const reverseSiteBlockModeMap = {
+        'blacklist': 0,
+        'whitelist': 1
+    };
     const normalizeWord = (word) => String(word || '').trim().toLowerCase();
     const buildEnglishTrieIndex = (words) => {
         const trie = new Trie();
@@ -451,6 +472,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let blockedSelected = new Set();
     let favoritesSelected = new Set();
     let siteBlockRules = [];
+    let siteBlockMode = 'blacklist';
     let siteBlockSelected = new Set();
     let currentSiteHost = '';
     let currentVocabList = [];
@@ -464,6 +486,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         return words.filter(word => word.includes(normalized));
     };
     const normalizeHost = (host) => String(host || '').trim().toLowerCase().replace(/\.+$/, '');
+    const normalizeSiteHostInput = (input) => {
+        const cleaned = normalizeSiteRule(input);
+        if (!cleaned) {
+            return '';
+        }
+        return normalizeHost(cleaned.startsWith('*.') ? cleaned.slice(2) : cleaned);
+    };
     const normalizeSiteRule = (rule) => {
         if (!rule) {
             return '';
@@ -500,7 +529,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             wildcards: wildcards.sort((a, b) => b.parts - a.parts)
         };
     };
-    const isHostBlocked = (host, rules) => {
+    const isHostMatchedByRules = (host, rules) => {
         const normalizedHost = normalizeHost(host);
         if (!normalizedHost) {
             return false;
@@ -516,6 +545,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             return normalizedHost.endsWith(`.${suffix}`);
         });
+    };
+    const isHostBlocked = (host, rules, mode = 'blacklist') => {
+        const matched = isHostMatchedByRules(host, rules);
+        if (mode === 'whitelist') {
+            return !matched;
+        }
+        return matched;
     };
     const findBestMatchingRule = (host, rules) => {
         const normalizedHost = normalizeHost(host);
@@ -541,6 +577,115 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         wildcardMatches.sort((a, b) => b.length - a.length);
         return wildcardMatches[0] || '';
+    };
+    const resolveSiteRuleCandidates = (host) => {
+        const normalizedHost = normalizeHost(host);
+        if (!normalizedHost) {
+            return null;
+        }
+        const parts = normalizedHost.split('.').filter(Boolean);
+        const parentSuffix = parts.length >= 2
+            ? parts.slice(-2).join('.')
+            : normalizedHost;
+        return {
+            parentWildcard: `*.${parentSuffix}`,
+            exact: normalizedHost,
+            subdomainWildcard: `*.${normalizedHost}`
+        };
+    };
+    const renderSiteRuleCandidates = () => {
+        if (!siteRuleHostInput || !siteRuleParentLabel || !siteRuleExactLabel || !siteRuleSubdomainLabel) {
+            return null;
+        }
+        const actionText = siteBlockMode === 'whitelist' ? '启用' : '禁用';
+        const normalizedHost = normalizeSiteHostInput(siteRuleHostInput.value);
+        const candidates = resolveSiteRuleCandidates(normalizedHost);
+        if (!candidates) {
+            siteRuleParentLabel.textContent = `在 *.example.com 中${actionText}`;
+            siteRuleExactLabel.textContent = `在 example.com 中${actionText}`;
+            siteRuleSubdomainLabel.textContent = `在 *.example.com 中${actionText}`;
+            return null;
+        }
+        siteRuleParentLabel.textContent = `在 ${candidates.parentWildcard} 中${actionText}`;
+        siteRuleExactLabel.textContent = `在 ${candidates.exact} 中${actionText}`;
+        siteRuleSubdomainLabel.textContent = `在 ${candidates.subdomainWildcard} 中${actionText}`;
+        return candidates;
+    };
+    const resetSiteRuleSelection = () => {
+        const exactOption = document.querySelector('input[name="siteRuleMode"][value="exact"]');
+        if (exactOption) {
+            exactOption.checked = true;
+        }
+    };
+    const clearSiteRuleStatus = () => {
+        if (!siteRuleStatus) {
+            return;
+        }
+        siteRuleStatus.textContent = '';
+        siteRuleStatus.classList.remove('error');
+    };
+    const showSiteRuleStatus = (message, isError = false) => {
+        if (!siteRuleStatus) {
+            return;
+        }
+        siteRuleStatus.textContent = message;
+        siteRuleStatus.classList.toggle('error', isError);
+    };
+    const updateSiteBlockCopy = () => {
+        const whitelist = siteBlockMode === 'whitelist';
+        if (siteBlockQuickTitle) {
+            siteBlockQuickTitle.textContent = whitelist ? '想让插件标注此网站？' : '想让插件不标注此网站？';
+        }
+        if (siteBlockQuickTooltip) {
+            siteBlockQuickTooltip.textContent = whitelist
+                ? '点击右侧“标注此网站”按钮，即可将当前网站加入白名单。再次点击可移出白名单。'
+                : '点击右侧“以后不再标注此网站”按钮，即可让插件在此网站上禁用。再次点击可取消。';
+        }
+        if (siteBlockTipText) {
+            siteBlockTipText.textContent = whitelist
+                ? '可以配置哪些网站允许插件工作；不在列表中的网站将不进行标注。'
+                : '可以配置在哪些网站上插件不进行工作。';
+        }
+        if (siteRulePageTitle) {
+            siteRulePageTitle.textContent = whitelist ? '添加白名单规则' : '添加黑名单规则';
+        }
+        if (siteRuleTipText) {
+            siteRuleTipText.textContent = whitelist
+                ? '输入域名后，选择启用范围并添加到网站白名单。'
+                : '输入域名后，选择禁用范围并添加到网站黑名单。';
+        }
+    };
+    const canTriggerQuickSiteRuleOpen = () => {
+        if (!blockSiteBtn || blockSiteBtn.disabled) {
+            return false;
+        }
+        if (!currentSiteHost) {
+            return false;
+        }
+        const blocked = isHostBlocked(currentSiteHost, siteBlockRules, siteBlockMode);
+        if (siteBlockMode === 'whitelist') {
+            return blocked;
+        }
+        return !blocked;
+    };
+    const cancelSiteRuleHoverOpen = () => {
+        if (siteRuleHoverTimer) {
+            clearTimeout(siteRuleHoverTimer);
+            siteRuleHoverTimer = null;
+        }
+        if (siteBlockQuickCard) {
+            siteBlockQuickCard.classList.remove('is-hover-progress');
+        }
+    };
+    const openSiteRulePage = async () => {
+        await loadCurrentSiteHost();
+        if (siteRuleHostInput && currentSiteHost) {
+            siteRuleHostInput.value = currentSiteHost;
+        }
+        resetSiteRuleSelection();
+        clearSiteRuleStatus();
+        renderSiteRuleCandidates();
+        showPage(pageSiteRule);
     };
     const deleteSelectedConfirmDelay = 3000;
     const deleteSelectedDoneDelay = 3000;
@@ -594,21 +739,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         favoritesSelectAll.textContent = allSelected ? '取消全选' : '全选';
         updateDeleteSelectedButton(favoritesDeleteSelected, favoritesSelected.size > 0);
     };
-    const renderBlockedWords = () => {
-        if (!blockedList) {
+    const renderWordSelectionList = ({
+                                         listElement,
+                                         filteredItems,
+                                         selectedItems,
+                                         emptyText,
+                                         onToggleSelection,
+                                         onDeleteItem
+                                     }) => {
+        if (!listElement) {
             return;
         }
-        blockedList.replaceChildren();
-        const filtered = filterWords(blockedWords, blockedSearchInput ? blockedSearchInput.value : '');
-        updateBlockedActions(filtered);
-        if (filtered.length === 0) {
+        listElement.replaceChildren();
+        if (filteredItems.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'empty-state';
-            empty.textContent = '暂无屏蔽词';
-            blockedList.appendChild(empty);
+            empty.textContent = emptyText;
+            listElement.appendChild(empty);
             return;
         }
-        filtered.forEach((word) => {
+        filteredItems.forEach((itemText) => {
             const item = document.createElement('div');
             item.className = 'word-item';
             const left = document.createElement('div');
@@ -616,18 +766,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.className = 'word-checkbox';
-            checkbox.checked = blockedSelected.has(word);
+            checkbox.checked = selectedItems.has(itemText);
             checkbox.addEventListener('change', () => {
                 if (checkbox.checked) {
-                    blockedSelected.add(word);
+                    selectedItems.add(itemText);
                 } else {
-                    blockedSelected.delete(word);
+                    selectedItems.delete(itemText);
                 }
-                updateBlockedActions(filtered);
+                onToggleSelection();
             });
             const text = document.createElement('div');
             text.className = 'word-text';
-            text.textContent = word;
+            text.textContent = itemText;
             left.appendChild(checkbox);
             left.appendChild(text);
             const deleteButton = document.createElement('button');
@@ -635,65 +785,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             deleteButton.className = 'word-delete';
             deleteButton.textContent = 'x';
             deleteButton.addEventListener('click', async () => {
+                await onDeleteItem(itemText);
+            });
+            item.appendChild(left);
+            item.appendChild(deleteButton);
+            listElement.appendChild(item);
+        });
+    };
+    const renderBlockedWords = () => {
+        const filtered = filterWords(blockedWords, blockedSearchInput ? blockedSearchInput.value : '');
+        updateBlockedActions(filtered);
+        renderWordSelectionList({
+            listElement: blockedList,
+            filteredItems: filtered,
+            selectedItems: blockedSelected,
+            emptyText: '暂无屏蔽词',
+            onToggleSelection: () => updateBlockedActions(filtered),
+            onDeleteItem: async (word) => {
                 blockedSelected.delete(word);
                 blockedWords = blockedWords.filter(itemWord => itemWord !== word);
                 await persistBlockedWords();
                 renderBlockedWords();
-            });
-            item.appendChild(left);
-            item.appendChild(deleteButton);
-            blockedList.appendChild(item);
+            }
         });
     };
     const renderFavorites = () => {
-        if (!favoritesList) {
-            return;
-        }
-        favoritesList.replaceChildren();
         const filtered = filterWords(favoriteWords, favoritesSearchInput ? favoritesSearchInput.value : '');
         updateFavoritesActions(filtered);
-        if (filtered.length === 0) {
-            const empty = document.createElement('div');
-            empty.className = 'empty-state';
-            empty.textContent = '暂无收藏的单词';
-            favoritesList.appendChild(empty);
-            return;
-        }
-        filtered.forEach((word) => {
-            const item = document.createElement('div');
-            item.className = 'word-item';
-            const left = document.createElement('div');
-            left.className = 'word-left';
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.className = 'word-checkbox';
-            checkbox.checked = favoritesSelected.has(word);
-            checkbox.addEventListener('change', () => {
-                if (checkbox.checked) {
-                    favoritesSelected.add(word);
-                } else {
-                    favoritesSelected.delete(word);
-                }
-                updateFavoritesActions(filtered);
-            });
-            const text = document.createElement('div');
-            text.className = 'word-text';
-            text.textContent = word;
-            left.appendChild(checkbox);
-            left.appendChild(text);
-            const deleteButton = document.createElement('button');
-            deleteButton.type = 'button';
-            deleteButton.className = 'word-delete';
-            deleteButton.textContent = 'x';
-            deleteButton.addEventListener('click', async () => {
+        renderWordSelectionList({
+            listElement: favoritesList,
+            filteredItems: filtered,
+            selectedItems: favoritesSelected,
+            emptyText: '暂无收藏的单词',
+            onToggleSelection: () => updateFavoritesActions(filtered),
+            onDeleteItem: async (word) => {
                 favoritesSelected.delete(word);
                 favoriteWords = favoriteWords.filter(itemWord => itemWord !== word);
                 await persistFavoriteWords();
                 renderFavorites();
-            });
-            item.appendChild(left);
-            item.appendChild(deleteButton);
-            favoritesList.appendChild(item);
+            }
         });
     };
     const updateSiteBlockActions = (filtered) => {
@@ -705,55 +835,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateDeleteSelectedButton(siteBlockDeleteSelected, siteBlockSelected.size > 0);
     };
     const renderSiteBlockRules = () => {
-        if (!siteBlockList) {
-            return;
-        }
-        siteBlockList.replaceChildren();
         const filtered = filterWords(siteBlockRules, siteBlockSearchInput ? siteBlockSearchInput.value : '');
         updateSiteBlockActions(filtered);
-        if (filtered.length === 0) {
-            const empty = document.createElement('div');
-            empty.className = 'empty-state';
-            empty.textContent = '暂无黑名单网站';
-            siteBlockList.appendChild(empty);
-            return;
-        }
-        filtered.forEach((rule) => {
-            const item = document.createElement('div');
-            item.className = 'word-item';
-            const left = document.createElement('div');
-            left.className = 'word-left';
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.className = 'word-checkbox';
-            checkbox.checked = siteBlockSelected.has(rule);
-            checkbox.addEventListener('change', () => {
-                if (checkbox.checked) {
-                    siteBlockSelected.add(rule);
-                } else {
-                    siteBlockSelected.delete(rule);
-                }
-                updateSiteBlockActions(filtered);
-            });
-            const text = document.createElement('div');
-            text.className = 'word-text';
-            text.textContent = rule;
-            left.appendChild(checkbox);
-            left.appendChild(text);
-            const deleteButton = document.createElement('button');
-            deleteButton.type = 'button';
-            deleteButton.className = 'word-delete';
-            deleteButton.textContent = 'x';
-            deleteButton.addEventListener('click', async () => {
+        renderWordSelectionList({
+            listElement: siteBlockList,
+            filteredItems: filtered,
+            selectedItems: siteBlockSelected,
+            emptyText: '暂无黑名单网站',
+            onToggleSelection: () => updateSiteBlockActions(filtered),
+            onDeleteItem: async (rule) => {
                 siteBlockSelected.delete(rule);
                 siteBlockRules = siteBlockRules.filter(itemRule => itemRule !== rule);
                 await persistSiteBlockRules();
                 renderSiteBlockRules();
                 updateBlockSiteButton();
-            });
-            item.appendChild(left);
-            item.appendChild(deleteButton);
-            siteBlockList.appendChild(item);
+            }
         });
     };
     const persistBlockedWords = async () => {
@@ -789,11 +885,81 @@ document.addEventListener('DOMContentLoaded', async () => {
             index: index
         });
     };
+    const persistSiteBlockMode = async (mode) => {
+        siteBlockMode = mode === 'whitelist' ? 'whitelist' : 'blacklist';
+        await chrome.storage.local.set({siteBlockMode});
+        await notifyActiveTabs({
+            action: 'updateSiteBlockMode',
+            mode: siteBlockMode
+        });
+        updateSiteBlockCopy();
+        renderSiteRuleCandidates();
+        await updateBlockSiteButton();
+    };
     const parseWordLines = (content) => {
         return content
             .split(/\r?\n/)
             .map(line => normalizeWord(line))
             .filter(Boolean);
+    };
+    const setSiteBlockImportStatus = (message, isError = false) => {
+        if (!siteBlockImportStatus) {
+            return;
+        }
+        siteBlockImportStatus.textContent = message || '';
+        siteBlockImportStatus.classList.toggle('error', isError);
+    };
+    const showSiteBlockImportPane = (mode) => {
+        const showManual = mode === 'manual';
+        if (siteBlockImportFilePane) {
+            siteBlockImportFilePane.style.display = showManual ? 'none' : 'block';
+        }
+        if (siteBlockImportManualPane) {
+            siteBlockImportManualPane.style.display = showManual ? 'block' : 'none';
+        }
+    };
+    const openSiteBlockImportModal = () => {
+        if (!siteBlockImportModal) {
+            return;
+        }
+        setSiteBlockImportStatus('');
+        showSiteBlockImportPane('file');
+        siteBlockImportModal.classList.add('show');
+    };
+    const closeSiteBlockImportModal = () => {
+        if (!siteBlockImportModal) {
+            return;
+        }
+        siteBlockImportModal.classList.remove('show');
+        if (siteBlockImportInput) {
+            siteBlockImportInput.value = '';
+        }
+    };
+    const parseSiteRuleBulkInput = (content) => {
+        return String(content || '')
+            .split(/[\r\n,，\s;；]+/)
+            .map(token => normalizeSiteRule(token))
+            .filter(Boolean);
+    };
+    const importSiteRules = async (rules) => {
+        const normalized = Array.from(new Set((rules || []).map(normalizeSiteRule).filter(Boolean)));
+        if (normalized.length === 0) {
+            return {added: 0, total: 0};
+        }
+        const existing = new Set(siteBlockRules.map(normalizeSiteRule).filter(Boolean));
+        let added = 0;
+        normalized.forEach((rule) => {
+            if (!existing.has(rule)) {
+                added += 1;
+                existing.add(rule);
+            }
+        });
+        siteBlockRules = Array.from(existing);
+        siteBlockSelected = new Set();
+        await persistSiteBlockRules();
+        renderSiteBlockRules();
+        await updateBlockSiteButton();
+        return {added, total: normalized.length};
     };
     const exportWords = (words, filename) => {
         const content = words.join('\n');
@@ -843,6 +1009,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
     const updateBlockSiteButton = async () => {
+        updateSiteBlockCopy();
         if (!blockSiteBtn) {
             return;
         }
@@ -854,9 +1021,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             blockSiteBtn.textContent = '当前页面受浏览器保护';
             return;
         }
-        const blocked = isHostBlocked(currentSiteHost, siteBlockRules);
+        const blocked = isHostBlocked(currentSiteHost, siteBlockRules, siteBlockMode);
         blockSiteBtn.disabled = false;
-        blockSiteBtn.textContent = blocked ? '此网站已禁用标注 点此取消' : '以后不再标注此网站';
+        if (siteBlockMode === 'whitelist') {
+            const allowed = !blocked;
+            blockSiteBtn.textContent = allowed
+                ? '此网站已允许标注 点此取消'
+                : '标注此网站';
+            return;
+        }
+        blockSiteBtn.textContent = blocked
+            ? '此网站已禁用标注 点此取消'
+            : '以后不再标注此网站';
     };
     if (vocabularyContent) {
         vocabularyContent.style.display = 'block';
@@ -930,6 +1106,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (advancedBack) {
         advancedBack.addEventListener('click', () => showPage(pageMain));
     }
+    if (aiSettingsBack) {
+        aiSettingsBack.addEventListener('click', () => showPage(pageAnnotation));
+    }
     if (styleBack) {
         styleBack.addEventListener('click', () => showPage(pageAdvanced));
     }
@@ -951,6 +1130,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (siteBlockBack) {
         siteBlockBack.addEventListener('click', () => showPage(pageAdvanced));
+    }
+    if (siteRuleBack) {
+        siteRuleBack.addEventListener('click', () => {
+            cancelSiteRuleHoverOpen();
+            showPage(pageMain);
+        });
     }
     if (aboutBack) {
         aboutBack.addEventListener('click', () => showPage(pageAdvanced));
@@ -978,8 +1163,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 更新显示模式滑块位置和标签状态
     function updateDisplayModeSliderUI(value) {
-        const percentage = (value / 2) * 100;
-        displayModeThumb.style.left = `${percentage * 0.6667}%`;
+        const max = parseInt(displayModeSlider.max, 10) || 1;
+        const stepWidth = 100 / (max + 1);
+        displayModeThumb.style.width = `${stepWidth}%`;
+        displayModeThumb.style.left = `${parseInt(value, 10) * stepWidth}%`;
         displayModeLabels.forEach((label, index) => {
             if (index === parseInt(value)) {
                 label.classList.add('active');
@@ -1007,6 +1194,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         dedupeModeThumb.style.left = `${percentage * 0.6667}%`;
         dedupeModeLabels.forEach((label, index) => {
             if (index === parseInt(value)) {
+                label.classList.add('active');
+            } else {
+                label.classList.remove('active');
+            }
+        });
+        const isCountMode = parseInt(value, 10) === 2;
+        if (dedupeRepeatCountSetting) {
+            dedupeRepeatCountSetting.style.display = isCountMode ? '' : 'none';
+        }
+        if (clearDedupeCountsSetting) {
+            clearDedupeCountsSetting.style.display = isCountMode ? '' : 'none';
+        }
+    }
+
+    function updateSiteBlockModeSliderUI(value) {
+        if (!siteBlockModeSlider || !siteBlockModeThumb) {
+            return;
+        }
+        const max = parseInt(siteBlockModeSlider.max, 10) || 1;
+        const stepWidth = 100 / (max + 1);
+        siteBlockModeThumb.style.width = `${stepWidth}%`;
+        siteBlockModeThumb.style.left = `${parseInt(value, 10) * stepWidth}%`;
+        siteBlockModeLabels.forEach((label, index) => {
+            if (index === parseInt(value, 10)) {
                 label.classList.add('active');
             } else {
                 label.classList.remove('active');
@@ -1065,35 +1276,140 @@ document.addEventListener('DOMContentLoaded', async () => {
             dedupeModeSlider.dispatchEvent(new Event('input'));
         });
     });
-    if (blockSiteBtn) {
-        blockSiteBtn.addEventListener('click', async () => {
-            await loadCurrentSiteHost();
-            if (!currentSiteHost) {
+    if (siteBlockModeSlider) {
+        siteBlockModeSlider.addEventListener('input', async () => {
+            const value = parseInt(siteBlockModeSlider.value, 10);
+            const mode = siteBlockModeMap[value] || 'blacklist';
+            updateSiteBlockModeSliderUI(value);
+            await persistSiteBlockMode(mode);
+        });
+    }
+    siteBlockModeLabels.forEach((label, index) => {
+        label.addEventListener('click', () => {
+            if (!siteBlockModeSlider) {
                 return;
             }
-            const blocked = isHostBlocked(currentSiteHost, siteBlockRules);
-            if (blocked) {
-                const ruleToRemove = findBestMatchingRule(currentSiteHost, siteBlockRules);
-                if (!ruleToRemove) {
-                    return;
-                }
-                siteBlockRules = siteBlockRules.filter(rule => normalizeSiteRule(rule) !== normalizeSiteRule(ruleToRemove));
-                siteBlockSelected = new Set();
-                await persistSiteBlockRules();
-                renderSiteBlockRules();
-                updateBlockSiteButton();
+            siteBlockModeSlider.value = index;
+            siteBlockModeSlider.dispatchEvent(new Event('input'));
+        });
+    });
+    if (blockSiteBtn) {
+        blockSiteBtn.addEventListener('click', async () => {
+            cancelSiteRuleHoverOpen();
+            await loadCurrentSiteHost();
+            if (!currentSiteHost) {
                 return;
             }
             const rule = normalizeHost(currentSiteHost);
             if (!rule) {
                 return;
             }
-            siteBlockRules = Array.from(new Set([...siteBlockRules, rule]));
+            const blocked = isHostBlocked(currentSiteHost, siteBlockRules, siteBlockMode);
+            if (siteBlockMode === 'whitelist') {
+                const allowed = !blocked;
+                if (allowed) {
+                    const ruleToRemove = findBestMatchingRule(currentSiteHost, siteBlockRules);
+                    if (!ruleToRemove) {
+                        return;
+                    }
+                    siteBlockRules = siteBlockRules.filter(item => normalizeSiteRule(item) !== normalizeSiteRule(ruleToRemove));
+                } else {
+                    siteBlockRules = Array.from(new Set([...siteBlockRules, rule]));
+                }
+            } else if (blocked) {
+                const ruleToRemove = findBestMatchingRule(currentSiteHost, siteBlockRules);
+                if (!ruleToRemove) {
+                    return;
+                }
+                siteBlockRules = siteBlockRules.filter(item => normalizeSiteRule(item) !== normalizeSiteRule(ruleToRemove));
+            } else {
+                siteBlockRules = Array.from(new Set([...siteBlockRules, rule]));
+            }
             siteBlockSelected = new Set();
             await persistSiteBlockRules();
             renderSiteBlockRules();
-            updateBlockSiteButton();
+            await updateBlockSiteButton();
         });
+    }
+    if (blockSiteRuleBtn) {
+        blockSiteRuleBtn.addEventListener('click', async () => {
+            cancelSiteRuleHoverOpen();
+            await openSiteRulePage();
+        });
+    }
+    if (siteBlockQuickCard) {
+        siteBlockQuickCard.addEventListener('mouseenter', async () => {
+            cancelSiteRuleHoverOpen();
+            await loadCurrentSiteHost();
+            await updateBlockSiteButton();
+            if (!canTriggerQuickSiteRuleOpen()) {
+                return;
+            }
+            siteBlockQuickCard.classList.add('is-hover-progress');
+            siteRuleHoverTimer = setTimeout(async () => {
+                siteRuleHoverTimer = null;
+                siteBlockQuickCard.classList.remove('is-hover-progress');
+                await openSiteRulePage();
+            }, 2000);
+        });
+        siteBlockQuickCard.addEventListener('mouseleave', () => {
+            cancelSiteRuleHoverOpen();
+        });
+    }
+    if (siteRuleHostInput) {
+        siteRuleHostInput.addEventListener('input', () => {
+            clearSiteRuleStatus();
+            renderSiteRuleCandidates();
+        });
+    }
+    if (siteRuleAddBtn) {
+        siteRuleAddBtn.addEventListener('click', async () => {
+            if (!siteRuleHostInput) {
+                return;
+            }
+            const normalizedHost = normalizeSiteHostInput(siteRuleHostInput.value);
+            if (!normalizedHost) {
+                showSiteRuleStatus('请输入有效域名', true);
+                return;
+            }
+            if (siteRuleHostInput.value !== normalizedHost) {
+                siteRuleHostInput.value = normalizedHost;
+            }
+            const candidates = resolveSiteRuleCandidates(normalizedHost);
+            if (!candidates) {
+                showSiteRuleStatus('无法生成规则，请检查域名', true);
+                return;
+            }
+            const selected = document.querySelector('input[name="siteRuleMode"]:checked');
+            const mode = selected ? selected.value : 'exact';
+            let nextRule = candidates.exact;
+            if (mode === 'parent-wildcard') {
+                nextRule = candidates.parentWildcard;
+            } else if (mode === 'subdomain-wildcard') {
+                nextRule = candidates.subdomainWildcard;
+            }
+            const normalizedRule = normalizeSiteRule(nextRule);
+            if (!normalizedRule) {
+                showSiteRuleStatus('规则格式无效', true);
+                return;
+            }
+            const ruleExists = siteBlockRules.some((rule) => normalizeSiteRule(rule) === normalizedRule);
+            if (ruleExists) {
+                showSiteRuleStatus('规则已存在');
+                return;
+            }
+            siteBlockRules = Array.from(new Set([...siteBlockRules, normalizedRule]));
+            siteBlockSelected = new Set();
+            await persistSiteBlockRules();
+            renderSiteBlockRules();
+            await updateBlockSiteButton();
+            clearSiteRuleStatus();
+            cancelSiteRuleHoverOpen();
+            showPage(pageMain);
+        });
+    }
+    if (annotationToAISettingsBtn) {
+        annotationToAISettingsBtn.addEventListener('click', () => showPage(pageAISettings));
     }
     const sliderMax = parseInt(maxMatchesSlider.max, 10);
     const updateMaxMatchesUI = (value) => {
@@ -1195,13 +1511,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
     }
-    if (disableAnnotationTooltipToggle) {
-        disableAnnotationTooltipToggle.addEventListener('change', async () => {
-            const disabled = disableAnnotationTooltipToggle.checked;
-            await chrome.storage.local.set({disableAnnotationTooltip: disabled});
+    if (annotationWordCardPopupEnabledToggle) {
+        annotationWordCardPopupEnabledToggle.addEventListener('change', async () => {
+            const enabled = annotationWordCardPopupEnabledToggle.checked;
+            await chrome.storage.local.set({annotationWordCardPopupEnabled: enabled});
             await notifyActiveTabs({
-                action: 'updateAnnotationTooltip',
-                disabled: disabled
+                action: 'updateAnnotationWordCardPopup',
+                enabled: enabled
+            });
+        });
+    }
+    if (wordCardHighlightMatchedChineseToggle) {
+        wordCardHighlightMatchedChineseToggle.addEventListener('change', async () => {
+            const enabled = wordCardHighlightMatchedChineseToggle.checked;
+            await chrome.storage.local.set({wordCardHighlightMatchedChinese: enabled});
+            await notifyActiveTabs({
+                action: 'updateWordCardMeaningHighlight',
+                enabled: enabled
             });
         });
     }
@@ -1217,8 +1543,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (resetPopupSizeButton) {
         resetPopupSizeButton.addEventListener('click', async () => {
             const originalText = resetPopupSizeButton.textContent;
-            await chrome.storage.local.remove(TOOLTIP_SIZE_STORAGE_KEY);
-            await notifyActiveTabs({action: 'resetTooltipSize'});
+            await chrome.storage.local.remove(WORD_CARD_POPUP_SIZE_STORAGE_KEY);
+            await notifyActiveTabs({action: 'resetWordCardPopupSize'});
             if (resetPopupSizeButton) {
                 resetPopupSizeButton.textContent = '已重置';
                 resetPopupSizeButton.disabled = true;
@@ -1246,7 +1572,385 @@ document.addEventListener('DOMContentLoaded', async () => {
             color: color
         });
     };
+
+    async function initAI() {
+        const aiModeSelect = document.getElementById('aiModeSelect');
+        const aiModeErrorHint = document.getElementById('aiModeErrorHint');
+        const runBenchmarkBtn = document.getElementById('runBenchmarkBtn');
+        const speedValue = document.getElementById('speedValue');
+        const aiModelSourceSection = document.getElementById('aiModelSourceSection');
+        const aiModelStatus = document.getElementById('aiModelStatus');
+        const aiDownloadSection = document.getElementById('aiDownloadSection');
+        const aiDownloadBtn = document.getElementById('aiDownloadBtn');
+        const aiUninstallBtn = document.getElementById('aiUninstallBtn');
+        const aiDownloadProgressWrap = document.getElementById('aiDownloadProgressWrap');
+        const aiDownloadText = document.getElementById('aiDownloadText');
+        const aiDownloadPercent = document.getElementById('aiDownloadPercent');
+        const aiDownloadBar = document.getElementById('aiDownloadBar');
+        const aiTriggerSelect = document.getElementById('aiTriggerSelect');
+        const aiTriggerDivider = document.getElementById('aiTriggerDivider');
+        const aiTriggerSection = document.getElementById('aiTriggerSection');
+        const aiParamsDivider = document.getElementById('aiParamsDivider');
+        const aiThresholdSection = document.getElementById('aiThresholdSection');
+        const aiThresholdSlider = document.getElementById('aiThresholdSlider');
+        const aiThresholdLabel = document.getElementById('aiThresholdLabel');
+        const aiDelaySection = document.getElementById('aiDelaySection');
+        const aiDelaySlider = document.getElementById('aiDelaySlider');
+        const aiDelayLabel = document.getElementById('aiDelayLabel');
+        const aiTimeoutSection = document.getElementById('aiTimeoutSection');
+        const aiTimeoutSlider = document.getElementById('aiTimeoutSlider');
+        const aiTimeoutLabel = document.getElementById('aiTimeoutLabel');
+        const aiBenchmarkDivider = document.getElementById('aiBenchmarkDivider');
+        const aiBenchmarkSection = document.getElementById('aiBenchmarkSection');
+        const benchmarkSuggestion = document.getElementById('benchmarkSuggestion');
+        const AI_DOWNLOAD_PROGRESS_AUTO_HIDE_MS = 5000;
+        let modelReady = false;
+        let aiModeErrorTimer = null;
+        let aiDownloadProgressHideTimer = null;
+
+        if (!aiModeSelect || !runBenchmarkBtn || !aiTriggerSelect) {
+            return;
+        }
+
+        const settings = await chrome.storage.local.get([
+            'aiMode',
+            'aiModelSource',
+            'aiModelInfoUrl',
+            'aiTrigger',
+            'aiSimilarityThreshold',
+            'aiProcessingDelay',
+            'aiSessionTimeoutMs'
+        ]);
+        const currentAiMode = settings.aiMode || 'none';
+        const currentModelSource = 'cloud';
+        const currentModelInfoUrl = settings.aiModelInfoUrl || 'https://api.jieci.top/model/onnx/info.json';
+        const currentAiTrigger = settings.aiTrigger || 'all';
+        const currentThreshold = settings.aiSimilarityThreshold !== undefined ? settings.aiSimilarityThreshold : 0.25;
+        const currentDelay = settings.aiProcessingDelay !== undefined ? settings.aiProcessingDelay : 0;
+        const currentTimeoutMs = settings.aiSessionTimeoutMs !== undefined ? Number(settings.aiSessionTimeoutMs) : 5000;
+        const currentTimeoutSec = Math.max(1, Math.min(15, Math.round(currentTimeoutMs / 1000)));
+
+        aiModeSelect.value = currentAiMode;
+        aiTriggerSelect.value = currentAiTrigger;
+        if (aiThresholdSlider) {
+            aiThresholdSlider.value = currentThreshold;
+            if (aiThresholdLabel) aiThresholdLabel.textContent = parseFloat(currentThreshold).toFixed(2);
+        }
+        if (aiDelaySlider) {
+            aiDelaySlider.value = currentDelay;
+            if (aiDelayLabel) aiDelayLabel.textContent = `${currentDelay}ms`;
+        }
+        if (aiTimeoutSlider) {
+            aiTimeoutSlider.value = currentTimeoutSec;
+            if (aiTimeoutLabel) aiTimeoutLabel.textContent = `${currentTimeoutSec}s`;
+        }
+
+        updateAIUI(currentAiMode);
+        await chrome.storage.local.set({
+            aiModelSource: currentModelSource,
+            aiModelInfoUrl: currentModelInfoUrl
+        });
+        await notifyActiveTabs({
+            action: 'updateAIModelSource',
+            source: currentModelSource,
+            infoUrl: currentModelInfoUrl
+        });
+        await notifyActiveTabs({
+            action: 'updateAITimeout',
+            timeoutMs: currentTimeoutSec * 1000
+        });
+        await refreshModelStatus();
+        if (currentAiMode !== 'none' && !modelReady) {
+            aiModeSelect.value = 'none';
+            await chrome.storage.local.set({aiMode: 'none'});
+            updateAIUI('none');
+            await notifyActiveTabs({action: 'updateAIMode', mode: 'none'});
+        }
+
+        aiModeSelect.addEventListener('change', async () => {
+            const mode = aiModeSelect.value;
+            if (mode !== 'none' && !modelReady) {
+                showAiModeError('请先下载AI模型');
+                aiModeSelect.value = 'none';
+                await chrome.storage.local.set({aiMode: 'none'});
+                updateAIUI('none');
+                await notifyActiveTabs({action: 'updateAIMode', mode: 'none'});
+                return;
+            }
+            await chrome.storage.local.set({aiMode: mode});
+            updateAIUI(mode);
+            await notifyActiveTabs({action: 'updateAIMode', mode});
+        });
+
+        if (aiDownloadBtn) {
+            aiDownloadBtn.addEventListener('click', async () => {
+                clearAiDownloadProgressHideTimer();
+                aiDownloadBtn.disabled = true;
+                await chrome.runtime.sendMessage({
+                    type: 'ai-download-cloud-model',
+                    infoUrl: currentModelInfoUrl
+                }).catch(() => ({}));
+                await trackDownloadProgress();
+                aiDownloadBtn.disabled = false;
+                await refreshModelStatus();
+            });
+        }
+
+        if (aiUninstallBtn) {
+            aiUninstallBtn.addEventListener('click', async () => {
+                aiUninstallBtn.disabled = true;
+                await chrome.runtime.sendMessage({type: 'ai-uninstall-cloud-model'}).catch(() => ({}));
+                clearAiDownloadProgressHideTimer();
+                if (aiDownloadProgressWrap) {
+                    aiDownloadProgressWrap.style.display = 'none';
+                }
+                aiModeSelect.value = 'none';
+                await chrome.storage.local.set({aiMode: 'none'});
+                updateAIUI('none');
+                await notifyActiveTabs({action: 'updateAIMode', mode: 'none'});
+                await refreshModelStatus();
+                aiUninstallBtn.disabled = false;
+            });
+        }
+
+        aiTriggerSelect.addEventListener('change', async () => {
+            const trigger = aiTriggerSelect.value;
+            await chrome.storage.local.set({aiTrigger: trigger});
+            await notifyActiveTabs({action: 'updateAITrigger', trigger});
+        });
+
+        if (aiThresholdSlider) {
+            aiThresholdSlider.addEventListener('input', async () => {
+                const val = parseFloat(aiThresholdSlider.value);
+                if (aiThresholdLabel) aiThresholdLabel.textContent = val.toFixed(2);
+                await chrome.storage.local.set({aiSimilarityThreshold: val});
+                await notifyActiveTabs({action: 'updateAIThreshold', threshold: val});
+            });
+        }
+
+        if (aiDelaySlider) {
+            aiDelaySlider.addEventListener('input', async () => {
+                const val = parseInt(aiDelaySlider.value, 10);
+                if (aiDelayLabel) aiDelayLabel.textContent = `${val}ms`;
+                await chrome.storage.local.set({aiProcessingDelay: val});
+                await notifyActiveTabs({action: 'updateAIDelay', delay: val});
+            });
+        }
+
+        if (aiTimeoutSlider) {
+            aiTimeoutSlider.addEventListener('input', async () => {
+                const sec = parseInt(aiTimeoutSlider.value, 10);
+                const timeoutMs = Math.max(1000, Math.min(15000, sec * 1000));
+                if (aiTimeoutLabel) aiTimeoutLabel.textContent = `${sec}s`;
+                await chrome.storage.local.set({aiSessionTimeoutMs: timeoutMs});
+                await notifyActiveTabs({action: 'updateAITimeout', timeoutMs});
+            });
+        }
+
+        runBenchmarkBtn.addEventListener('click', async () => {
+            await runBenchmark();
+        });
+
+        function updateAIUI(mode) {
+            const isEnabled = mode !== 'none';
+            if (aiModelSourceSection) aiModelSourceSection.style.display = 'block';
+            if (aiTriggerDivider) aiTriggerDivider.style.display = isEnabled ? 'block' : 'none';
+            if (aiTriggerSection) aiTriggerSection.style.display = isEnabled ? 'block' : 'none';
+            if (aiParamsDivider) aiParamsDivider.style.display = isEnabled ? 'block' : 'none';
+            if (aiThresholdSection) aiThresholdSection.style.display = isEnabled ? 'block' : 'none';
+            if (aiDelaySection) aiDelaySection.style.display = isEnabled ? 'block' : 'none';
+            if (aiTimeoutSection) aiTimeoutSection.style.display = isEnabled ? 'block' : 'none';
+            if (aiBenchmarkDivider) aiBenchmarkDivider.style.display = isEnabled ? 'block' : 'none';
+            if (aiBenchmarkSection) aiBenchmarkSection.style.display = isEnabled ? 'block' : 'none';
+        }
+
+        function showAiModeError(message) {
+            if (!aiModeErrorHint) return;
+            if (aiModeErrorTimer) {
+                clearTimeout(aiModeErrorTimer);
+                aiModeErrorTimer = null;
+            }
+            aiModeErrorHint.textContent = message;
+            aiModeErrorHint.style.display = 'block';
+            aiModeErrorTimer = setTimeout(() => {
+                aiModeErrorHint.style.display = 'none';
+                aiModeErrorTimer = null;
+            }, 3000);
+        }
+
+        function clearAiDownloadProgressHideTimer() {
+            if (aiDownloadProgressHideTimer) {
+                clearTimeout(aiDownloadProgressHideTimer);
+                aiDownloadProgressHideTimer = null;
+            }
+        }
+
+        function scheduleAiDownloadProgressHide() {
+            clearAiDownloadProgressHideTimer();
+            aiDownloadProgressHideTimer = setTimeout(() => {
+                if (aiDownloadProgressWrap) {
+                    aiDownloadProgressWrap.style.display = 'none';
+                }
+                aiDownloadProgressHideTimer = null;
+            }, AI_DOWNLOAD_PROGRESS_AUTO_HIDE_MS);
+        }
+
+        async function refreshModelStatus() {
+            if (!aiModelStatus || !aiDownloadSection) return;
+            aiModelStatus.textContent = '';
+            aiModelStatus.style.display = 'none';
+            const resp = await chrome.runtime.sendMessage({
+                type: 'ai-model-status',
+                infoUrl: currentModelInfoUrl
+            }).catch(() => null);
+            if (!resp || !resp.ok || !resp.status) {
+                modelReady = false;
+                aiDownloadSection.style.display = 'block';
+                if (aiDownloadBtn) aiDownloadBtn.style.display = 'inline-flex';
+                if (aiUninstallBtn) aiUninstallBtn.style.display = 'none';
+                return;
+            }
+            const {cloudReady} = resp.status;
+            modelReady = !!cloudReady;
+            aiDownloadSection.style.display = 'block';
+            if (aiDownloadBtn) aiDownloadBtn.textContent = '下载模型';
+            if (aiUninstallBtn) aiUninstallBtn.textContent = '模型已经下载 点击卸载';
+            if (aiDownloadBtn) aiDownloadBtn.style.display = cloudReady ? 'none' : 'inline-flex';
+            if (aiUninstallBtn) aiUninstallBtn.style.display = cloudReady ? 'inline-flex' : 'none';
+            if (aiUninstallBtn) aiUninstallBtn.disabled = !cloudReady;
+        }
+
+        async function trackDownloadProgress() {
+            if (!aiDownloadProgressWrap || !aiDownloadPercent || !aiDownloadBar || !aiDownloadText) return;
+            clearAiDownloadProgressHideTimer();
+            aiDownloadProgressWrap.style.display = 'block';
+            const start = Date.now();
+            while (Date.now() - start < 10 * 60 * 1000) {
+                const resp = await chrome.runtime.sendMessage({type: 'ai-download-status'}).catch(() => null);
+                if (!resp || !resp.ok || !resp.status) {
+                    break;
+                }
+                const st = resp.status;
+                const pct = Number(st.percent || 0);
+                aiDownloadPercent.textContent = `${pct}%`;
+                aiDownloadBar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+                if (st.error) {
+                    aiDownloadText.textContent = `下载失败: ${st.error}`;
+                    return;
+                }
+                if (st.done) {
+                    aiDownloadText.textContent = '下载完成';
+                    aiDownloadPercent.textContent = '100%';
+                    aiDownloadBar.style.width = '100%';
+                    scheduleAiDownloadProgressHide();
+                    return;
+                }
+                aiDownloadText.textContent = '下载中...';
+                await new Promise((r) => setTimeout(r, 250));
+            }
+            aiDownloadText.textContent = '下载状态超时，请重试';
+        }
+
+        async function runBenchmark() {
+            const mode = aiModeSelect.value;
+            if (mode === 'none') return;
+
+            runBenchmarkBtn.disabled = true;
+            const originalText = runBenchmarkBtn.textContent;
+            runBenchmarkBtn.textContent = '测速中...';
+            speedValue.textContent = '--';
+
+            try {
+                if (mode === 'gpu') {
+                    if (!navigator.gpu) {
+                        alert('当前浏览器不支持 WebGPU');
+                        return;
+                    }
+                    const adapter = await navigator.gpu.requestAdapter();
+                    if (!adapter) {
+                        alert('WebGPU 请求适配器失败');
+                        return;
+                    }
+                } else if (mode === 'npu') {
+                    if (!navigator.ml) {
+                        alert('当前浏览器不支持 WebNN (NPU)');
+                        return;
+                    }
+                }
+
+                const liSao = `
+帝高阳之苗裔兮，朕皇考曰伯庸。 摄提贞于孟陬兮，惟庚寅吾以降。 皇览揆余初度兮，肇锡余以嘉名。 名余曰正则兮，字余曰灵均。 纷吾既有此内美兮，又重之以修能。 扈江离与辟芷兮，纫秋兰以为佩。 汩余若将不及兮，恐年岁之不吾与。 朝搴阰之木兰兮，夕揽洲之宿莽。
+日月忽其不淹兮，春与秋其代序。 惟草木之零落兮，恐美人之迟暮。 不抚壮而弃秽兮，何不改乎此度？ 乘骐骥以驰骋兮，来吾道夫先路！ 昔三后之纯粹兮，固众芳之所在。 杂申椒与菌桂兮，岂惟纫夫蕙茝！ 彼尧、舜之耿介兮，既遵道而得路。 何桀纣之昌披兮，夫唯捷径以窘步。
+惟夫党人之偷乐兮，路幽昧以险隘。 岂余身之惮殃兮，恐皇舆之败绩。 忽奔走以先后兮，及前王之踵武。 荃不查余之中情兮，反信谗而齌怒。 余固知謇謇之为患兮，忍而不能舍也。 指九天以为正兮，夫唯灵修之故也。 曰黄昏以为期兮，羌中道而改路。 初既与余成言兮，后悔遁而有他。
+余既不难夫离别兮，伤灵修之数化。 余既滋兰之九畹兮，又树蕙之百亩。 畦留夷与揭车兮，杂杜衡与芳芷。 冀枝叶之峻茂兮，愿俟时乎吾将刈。 虽萎绝其亦何伤兮，哀众芳之芜秽。 众皆竞进以贪婪兮，凭不厌乎求索。 羌内恕己以量人兮，各兴心而嫉妒。 忽驰骛以追逐兮，非余心之所急。
+老冉冉其将至兮，恐修名之不立。 朝饮木兰之坠露兮，夕餐秋菊之落英。 苟余情其信姱以练要兮，长顑颔亦何伤。 掔木根以结茝兮，贯薜荔之落蕊。 矫菌桂以纫蕙兮，索胡绳之纚纚。 謇吾法夫前修兮，非世俗之所服。 虽不周于今之人兮，愿依彭咸之遗则。 长太息以掩涕兮，哀民生之多艰。
+余虽好修姱以鞿羁兮，謇朝谇而夕替。 既替余以蕙纕兮，又申之以揽茝。 亦余心之所善兮，虽九死其犹未悔。 怨灵修之浩荡兮，终不察夫民心。 众女嫉余之蛾眉兮，谣诼谓余以善淫。 固时俗之工巧兮，偭规矩而改错。 背绳墨以追曲兮，竞周容以为度。 忳郁邑余侘傺兮，吾独穷困乎此时也。
+宁溘死以流亡兮，余不忍为此态也。 鸷鸟之不群兮，自前世而固然。 何方圜之能周兮，夫孰异道而相安？ 屈心而抑志兮，忍尤而攘诟。 伏清白以死直兮，固前圣之所厚。 悔相道之不察兮，延伫乎吾将反。 回朕车以复路兮，及行迷之未远。 步余马于兰皋兮，驰椒丘且焉止息。
+进不入以离尤兮，退将复修吾初服。 制芰荷以为衣兮，集芙蓉以为裳。 不吾知其亦已兮，苟余情其信芳。 高余冠之岌岌兮，长余佩之陆离。 芳与泽其杂糅兮，唯昭质其犹未亏。 忽反顾以游目兮，将往观乎四荒。 佩缤纷其繁饰兮，芳菲菲其弥章。 民生各有所乐兮，余独好修以为常。
+虽体解吾犹未变兮，岂余心之可惩。 女嬃之婵媛兮，申申其詈予。 曰：“鲧婞直以亡身兮，终然夭乎羽之野。 汝何博謇而好修兮，纷独有此姱节。 薋菉葹以盈室兮，判独离而不服。 众不可户说兮，孰云察余之中情。 世并举而好朋兮，夫何茕独而不予听？ 依前圣以节中兮，喟凭心而历兹。
+济沅、湘以南征兮，就重华而敶词： 启《九辩》与《九歌》兮，夏康娱以自纵。 不顾难以图后兮，五子用失乎家衖。 羿淫游以佚畋兮，又好射夫封狐。 固乱流其鲜终兮，浞又贪夫厥家。 浇身被服强圉兮，纵欲而不忍。 日康娱而自忘兮，厥首用夫颠陨。 夏桀之常违兮，乃遂焉而逢殃。
+后辛之菹醢兮，殷宗用而不长。 汤、禹俨而祗敬兮，周论道而莫差。 举贤才而授能兮，循绳墨而不颇。 皇天无私阿兮，览民德焉错辅。 夫维圣哲以茂行兮，苟得用此下土。 瞻前而顾后兮，相观民之计极。 夫孰非义而可用兮？孰非善而可服？ 阽余身而危死兮，览余初其犹未悔。
+不量凿而正枘兮，固前修以菹醢。 曾歔欷余郁邑兮，哀朕时之不当。 揽茹蕙以掩涕兮，沾余襟之浪浪。 跪敷衽以陈辞兮，耿吾既得此中正。 驷玉虬以桀鹥兮，溘埃风余上征。 朝发轫于苍梧兮，夕余至乎县圃。 欲少留此灵琐兮，日忽忽其将暮。 吾令羲和弭节兮，望崦嵫而勿迫。
+路漫漫其修远兮，吾将上下而求索。 饮余马于咸池兮，总余辔乎扶桑。 折若木以拂日兮，聊逍遥以相羊。 前望舒使先驱兮，后飞廉使奔属。 鸾皇为余先戒兮，雷师告余以未具。 吾令凤鸟飞腾兮，继之以日夜。 飘风屯其相离兮，帅云霓而来御。 纷总总其离合兮，斑陆离其上下。
+吾令帝阍开关兮，倚阊阖而望予。 时暧暧其将罢兮，结幽兰而延伫。 世溷浊而不分兮，好蔽美而嫉妒。 朝吾将济于白水兮，登阆风而绁马。 忽反顾以流涕兮，哀高丘之无女。 溘吾游此春宫兮，折琼枝以继佩。 及荣华之未落兮，相下女之可诒。 吾令丰隆乘云兮，求宓妃之所在。
+解佩纕以结言兮，吾令謇修以为理。 纷总总其离合兮，忽纬繣其难迁。 夕归次于穷石兮，朝濯发乎洧盘。 保厥美以骄傲兮，日康娱以淫游。 虽信美而无礼兮，来违弃而改求。 览相观于四极兮，周流乎天余乃下。 望瑶台之偃蹇兮，见有娀之佚女。 吾令鸩为媒兮，鸩告余以不好。
+雄鸠之鸣逝兮，余犹恶其佻巧。 心犹豫而狐疑兮，欲自适而不可。 凤皇既受诒兮，恐高辛之先我。 欲远集而无所止兮，聊浮游以逍遥。 及少康之未家兮，留有虞之二姚。 理弱而媒拙兮，恐导言之不固。 世溷浊而嫉贤兮，好蔽美而称恶。 闺中既以邃远兮，哲王又不寤。
+怀朕情而不发兮，余焉能忍而与此终古？ 索琼茅以筳篿兮，命灵氛为余占之。 曰：“两美其必合兮，孰信修而慕之？ 思九州之博大兮，岂惟是其有女？” 曰：“勉远逝而无狐疑兮，孰求美而释女？ 何所独无芳草兮，尔何怀乎故宇？” 世幽昧以昡曜兮，孰云察余之善恶？ 民好恶其不同兮，惟此党人其独异！
+户服艾以盈要兮，谓幽兰其不可佩。 览察草木其犹未得兮，岂珵美之能当？ 苏粪壤以充祎兮，谓申椒其不芳。 欲从灵氛之吉占兮，心犹豫而狐疑。 巫咸将夕降兮，怀椒糈而要之。 百神翳其备降兮，九疑缤其并迎。 皇剡剡其扬灵兮，告余以吉故。 曰：“勉升降以上下兮，求矩矱之所同。
+汤、禹俨而求合兮，挚、咎繇而能调。 苟中情其好修兮，又何必用夫行媒？ 说操筑于傅岩兮，武丁用而不疑。 吕望之鼓刀兮，遭周文而得举。 宁戚之讴歌兮，齐桓闻以该辅。 及年岁之未晏兮，时亦犹其未央。 恐鹈鴃之先鸣兮，使夫百草为之不芳。” 何琼佩之偃蹇兮，众薆然而蔽之。
+惟此党人之不谅兮，恐嫉妒而折之。 时缤纷其变易兮，又何可以淹留？ 兰芷变而不芳兮，荃蕙化而为茅。 何昔日之芳草兮，今直为此萧艾也？ 岂其有他故兮，莫好修之害也！ 余以兰为可恃兮，羌无实而容长。 委厥美以从俗兮，苟得列乎众芳。 椒专佞以慢慆兮，樧又欲充夫佩帏。
+既干进而务入兮，又何芳之能祗？ 固时俗之流从兮，又孰能无变化？ 览椒兰其若兹兮，又况揭车与江离？ 惟兹佩之可贵兮，委厥美而历兹。 芳菲菲而难亏兮，芬至今犹未沬。 和调度以自娱兮，聊浮游而求女。 及余饰之方壮兮，周流观乎上下。 灵氛既告余以吉占兮，历吉日乎吾将行。
+折琼枝以为羞兮，精琼爢以为粻。 为余驾飞龙兮，杂瑶象以为车。 何离心之可同兮？吾将远逝以自疏。 邅吾道夫昆仑兮，路修远以周流。 扬云霓之晻蔼兮，鸣玉鸾之啾啾。 朝发轫于天津兮，夕余至乎西极。 凤皇翼其承旗兮，高翱翔之翼翼。 忽吾行此流沙兮，遵赤水而容与。
+麾蛟龙使梁津兮，诏西皇使涉予。 路修远以多艰兮，腾众车使径待。 路不周以左转兮，指西海以为期。 屯余车其千乘兮，齐玉轪而并驰。 驾八龙之婉婉兮，载云旗之委蛇。 抑志而弭节兮，神高驰之邈邈。 奏《九歌》而舞《韶》兮，聊假日以偷乐。 陟升皇之赫戏兮，忽临睨夫旧乡。
+仆夫悲余马怀兮，蜷局顾而不行。 乱曰：已矣哉！ 国无人莫我知兮，又何怀乎故都！ 既莫足与为美政兮，吾将从彭咸之所居！                `;
+                // Repeat to ensure sufficient length (~1000 chars)
+                const text = (liSao + liSao).substring(0, 1000);
+                const resp = await chrome.runtime.sendMessage({
+                    type: 'ai-benchmark',
+                    mode,
+                    infoUrl: currentModelInfoUrl,
+                    text
+                }).catch((error) => {
+                    throw new Error(error && error.message ? error.message : 'benchmark request failed');
+                });
+                if (!resp || !resp.ok) {
+                    const message = resp && resp.error ? String(resp.error) : 'benchmark failed';
+                    console.warn('Benchmark rejected:', message, resp);
+                    speedValue.textContent = 'Error';
+                    alert(`测速失败: ${message}`);
+                    return;
+                }
+                if (!resp.result || typeof resp.result !== 'object') {
+                    console.warn('Benchmark invalid response:', resp);
+                    speedValue.textContent = 'Error';
+                    alert('测速失败: benchmark response invalid');
+                    return;
+                }
+                const speed = Number(resp.result.speed || 0);
+                speedValue.textContent = String(speed);
+                if (benchmarkSuggestion) {
+                    benchmarkSuggestion.style.display = 'block';
+                    if (speed < 500) {
+                        benchmarkSuggestion.textContent = 'AI 推理速度较低，不建议开启端侧AI';
+                        benchmarkSuggestion.style.color = '#f44336';
+                    } else {
+                        benchmarkSuggestion.textContent = 'AI 推理速度良好，可以开启端侧AI';
+                        benchmarkSuggestion.style.color = '#4caf50';
+                    }
+                }
+            } catch (error) {
+                console.error('Benchmark failed:', error);
+                speedValue.textContent = 'Error';
+                alert(`测速失败: ${error && error.message ? error.message : String(error)}`);
+            } finally {
+                runBenchmarkBtn.disabled = false;
+                runBenchmarkBtn.textContent = originalText;
+            }
+        }
+    }
+
     await loadSettings();
+    await initAI();
     highlightModeSelect.addEventListener('change', () => {
         const mode = highlightModeSelect.value;
         updateHighlightControls(mode);
@@ -1323,6 +2027,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             speechVoiceURI
         });
     };
+    const previewSpeech = (text, fallbackLang) => {
+        if (typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') {
+            alert('当前浏览器不支持语音朗读');
+            return;
+        }
+        const utterance = new SpeechSynthesisUtterance(text);
+        const selectedVoiceURI = speechVoiceSelect ? (speechVoiceSelect.value || '') : '';
+        const voices = speechSynthesis.getVoices();
+        if (selectedVoiceURI) {
+            const selectedVoice = voices.find((voice) => voice.voiceURI === selectedVoiceURI);
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+                utterance.lang = selectedVoice.lang || fallbackLang;
+            } else {
+                utterance.lang = fallbackLang;
+            }
+        } else {
+            utterance.lang = fallbackLang;
+        }
+        speechSynthesis.cancel();
+        speechSynthesis.speak(utterance);
+    };
     if (speechVoiceSelect) {
         speechVoiceSelect.addEventListener('change', saveSpeechVoiceSetting);
         renderSpeechVoiceOptions();
@@ -1330,23 +2056,41 @@ document.addEventListener('DOMContentLoaded', async () => {
             speechSynthesis.addEventListener('voiceschanged', renderSpeechVoiceOptions);
         }
     }
-    if (blockedSearchInput) {
-        blockedSearchInput.addEventListener('input', () => {
-            renderBlockedWords();
+    if (testChineseVoiceBtn) {
+        testChineseVoiceBtn.addEventListener('click', () => {
+            previewSpeech('您好，欢迎使用本插件，希望您用的愉快。', 'zh-CN');
         });
     }
-    if (blockedSelectAll) {
-        blockedSelectAll.addEventListener('click', () => {
-            const filtered = filterWords(blockedWords, blockedSearchInput ? blockedSearchInput.value : '');
-            const allSelected = filtered.length > 0 && filtered.every(word => blockedSelected.has(word));
-            if (allSelected) {
-                filtered.forEach(word => blockedSelected.delete(word));
-            } else {
-                filtered.forEach(word => blockedSelected.add(word));
-            }
-            renderBlockedWords();
+    if (testEnglishVoiceBtn) {
+        testEnglishVoiceBtn.addEventListener('click', () => {
+            previewSpeech('Hello, welcome to this extension. Hope you enjoy using it.', 'en-US');
         });
     }
+    const bindSearchAndSelectAll = ({searchInput, selectAllButton, render, getFiltered, getSelected}) => {
+        if (searchInput) {
+            searchInput.addEventListener('input', render);
+        }
+        if (selectAllButton) {
+            selectAllButton.addEventListener('click', () => {
+                const filtered = getFiltered();
+                const selected = getSelected();
+                const allSelected = filtered.length > 0 && filtered.every(item => selected.has(item));
+                if (allSelected) {
+                    filtered.forEach(item => selected.delete(item));
+                } else {
+                    filtered.forEach(item => selected.add(item));
+                }
+                render();
+            });
+        }
+    };
+    bindSearchAndSelectAll({
+        searchInput: blockedSearchInput,
+        selectAllButton: blockedSelectAll,
+        render: renderBlockedWords,
+        getFiltered: () => filterWords(blockedWords, blockedSearchInput ? blockedSearchInput.value : ''),
+        getSelected: () => blockedSelected
+    });
     if (blockedDeleteSelected) {
         blockedDeleteSelected.addEventListener('click', async () => {
             if (blockedSelected.size === 0) {
@@ -1381,11 +2125,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }, deleteSelectedConfirmDelay);
         });
     }
-    if (favoritesSearchInput) {
-        favoritesSearchInput.addEventListener('input', () => {
-            renderFavorites();
-        });
-    }
+    bindSearchAndSelectAll({
+        searchInput: favoritesSearchInput,
+        selectAllButton: favoritesSelectAll,
+        render: renderFavorites,
+        getFiltered: () => filterWords(favoriteWords, favoritesSearchInput ? favoritesSearchInput.value : ''),
+        getSelected: () => favoritesSelected
+    });
     if (dictSearchInput) {
         dictSearchInput.addEventListener('input', () => {
             displayDictList(serverDictList);
@@ -1405,18 +2151,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (vocabSearchInput) {
         vocabSearchInput.addEventListener('input', () => {
             displayFilesList(currentVocabList);
-        });
-    }
-    if (favoritesSelectAll) {
-        favoritesSelectAll.addEventListener('click', () => {
-            const filtered = filterWords(favoriteWords, favoritesSearchInput ? favoritesSearchInput.value : '');
-            const allSelected = filtered.length > 0 && filtered.every(word => favoritesSelected.has(word));
-            if (allSelected) {
-                filtered.forEach(word => favoritesSelected.delete(word));
-            } else {
-                filtered.forEach(word => favoritesSelected.add(word));
-            }
-            renderFavorites();
         });
     }
     if (favoritesDeleteSelected) {
@@ -1453,23 +2187,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }, deleteSelectedConfirmDelay);
         });
     }
-    if (siteBlockSearchInput) {
-        siteBlockSearchInput.addEventListener('input', () => {
-            renderSiteBlockRules();
-        });
-    }
-    if (siteBlockSelectAll) {
-        siteBlockSelectAll.addEventListener('click', () => {
-            const filtered = filterWords(siteBlockRules, siteBlockSearchInput ? siteBlockSearchInput.value : '');
-            const allSelected = filtered.length > 0 && filtered.every(rule => siteBlockSelected.has(rule));
-            if (allSelected) {
-                filtered.forEach(rule => siteBlockSelected.delete(rule));
-            } else {
-                filtered.forEach(rule => siteBlockSelected.add(rule));
-            }
-            renderSiteBlockRules();
-        });
-    }
+    bindSearchAndSelectAll({
+        searchInput: siteBlockSearchInput,
+        selectAllButton: siteBlockSelectAll,
+        render: renderSiteBlockRules,
+        getFiltered: () => filterWords(siteBlockRules, siteBlockSearchInput ? siteBlockSearchInput.value : ''),
+        getSelected: () => siteBlockSelected
+    });
     if (siteBlockDeleteSelected) {
         siteBlockDeleteSelected.addEventListener('click', async () => {
             if (siteBlockSelected.size === 0) {
@@ -1505,10 +2229,41 @@ document.addEventListener('DOMContentLoaded', async () => {
             }, deleteSelectedConfirmDelay);
         });
     }
-    if (siteBlockImportBtn && siteBlockImportInput) {
-        siteBlockImportBtn.addEventListener('click', () => {
+    if (siteBlockImportBtn) {
+        siteBlockImportBtn.addEventListener('click', openSiteBlockImportModal);
+    }
+    if (siteBlockImportModalClose) {
+        siteBlockImportModalClose.addEventListener('click', closeSiteBlockImportModal);
+    }
+    if (siteBlockImportModal) {
+        siteBlockImportModal.addEventListener('click', (event) => {
+            if (event.target === siteBlockImportModal) {
+                closeSiteBlockImportModal();
+            }
+        });
+    }
+    if (siteBlockImportFromFileBtn) {
+        siteBlockImportFromFileBtn.addEventListener('click', () => {
+            showSiteBlockImportPane('file');
+            setSiteBlockImportStatus('');
+        });
+    }
+    if (siteBlockImportManualBtn) {
+        siteBlockImportManualBtn.addEventListener('click', () => {
+            showSiteBlockImportPane('manual');
+            setSiteBlockImportStatus('');
+            if (siteBlockManualInput) {
+                siteBlockManualInput.focus();
+            }
+        });
+    }
+    if (siteBlockChooseFileBtn && siteBlockImportInput) {
+        siteBlockChooseFileBtn.addEventListener('click', () => {
+            setSiteBlockImportStatus('');
             siteBlockImportInput.click();
         });
+    }
+    if (siteBlockImportInput) {
         siteBlockImportInput.addEventListener('change', async (event) => {
             const file = event.target.files && event.target.files[0];
             if (!file) {
@@ -1516,14 +2271,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             try {
                 const content = await readFileAsText(file);
-                const rules = parseWordLines(content).map(normalizeSiteRule).filter(Boolean);
-                siteBlockRules = Array.from(new Set([...siteBlockRules, ...rules]));
-                siteBlockSelected = new Set();
-                await persistSiteBlockRules();
-                renderSiteBlockRules();
-                updateBlockSiteButton();
+                const rules = parseSiteRuleBulkInput(content);
+                const result = await importSiteRules(rules);
+                if (result.total === 0) {
+                    setSiteBlockImportStatus('导入失败：未识别到有效域名规则', true);
+                    return;
+                }
+                setSiteBlockImportStatus(`导入完成：新增 ${result.added} 条，识别 ${result.total} 条`);
+            } catch (error) {
+                setSiteBlockImportStatus(`导入失败：${error.message}`, true);
             } finally {
                 siteBlockImportInput.value = '';
+            }
+        });
+    }
+    if (siteBlockManualImportConfirm && siteBlockManualInput) {
+        siteBlockManualImportConfirm.addEventListener('click', async () => {
+            const raw = siteBlockManualInput.value || '';
+            const rules = parseSiteRuleBulkInput(raw);
+            if (rules.length === 0) {
+                setSiteBlockImportStatus('请输入有效域名规则后再导入', true);
+                return;
+            }
+            try {
+                const result = await importSiteRules(rules);
+                setSiteBlockImportStatus(`导入完成：新增 ${result.added} 条，识别 ${result.total} 条`);
+                siteBlockManualInput.value = '';
+            } catch (error) {
+                setSiteBlockImportStatus(`导入失败：${error.message}`, true);
             }
         });
     }
@@ -1922,7 +2697,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return (name || '').trim();
     }
 
-function openUpdateModal() {
+    function openUpdateModal() {
         if (!updateModal) {
             return;
         }
@@ -2162,122 +2937,7 @@ function openUpdateModal() {
         notifyContentScripts();
     }
 
-    /*
-    async function updateAllVocabularies() {
-        if (!updateAllBtn) {
-            return;
-        }
-        updateAllBtn.disabled = true;
-        importStatus.textContent = '正在更新词库...';
-        importStatus.className = 'import-status importing';
-        setUpdateProgressVisible(true);
-        updateCurrentProgress('准备更新...', 0);
-        if (updateOverall) {
-            updateOverall.style.display = 'block';
-        }
-        try {
-            const dictionaries = await fetchServerDictionaryIndex();
-            const result = await chrome.storage.local.get('vocabularies');
-            let vocabList = result.vocabularies || [];
-            if (vocabList.length === 0) {
-                importStatus.textContent = '暂无可更新的本地词库';
-                importStatus.className = 'import-status error';
-                setUpdateProgressVisible(false);
-                return;
-            }
-            const failures = [];
-            let successCount = 0;
-            let processedCount = 0;
-            for (const vocab of vocabList) {
-                const dict = findServerDictByName(dictionaries, vocab.name);
-                if (!dict) {
-                    failures.push(`${vocab.name || '未命名词库'}: 服务器未找到`);
-                    processedCount += 1;
-                    updateOverallProgress(`总进度: ${processedCount}/${vocabList.length}`, Math.round((processedCount / vocabList.length) * 100));
-                    continue;
-                }
-                try {
-                    updateCurrentProgress(`更新中: ${dict.name || vocab.name || '未命名词库'}`, 0);
-                    vocabList = await updateVocabularyEntry(vocabList, vocab, dict, (percent) => {
-                        updateCurrentProgress(`更新中: ${dict.name || vocab.name || '未命名词库'}`, percent);
-                        updateOverallProgress(
-                            `总进度: ${processedCount}/${vocabList.length}`,
-                            calculateOverallPercent(processedCount, vocabList.length, percent)
-                        );
-                    });
-                    successCount += 1;
-                    importStatus.textContent = `正在更新词库... (${successCount}/${vocabList.length})`;
-                } catch (error) {
-                    failures.push(`${vocab.name || '未命名词库'}: ${error.message}`);
-                } finally {
-                    processedCount += 1;
-                    updateOverallProgress(`总进度: ${processedCount}/${vocabList.length}`, Math.round((processedCount / vocabList.length) * 100));
-                }
-            }
-            await finalizeVocabulariesUpdate(vocabList);
-            if (failures.length > 0) {
-                importStatus.textContent = `更新完成，成功 ${successCount}，失败 ${failures.length}: ${failures.join('；')}`;
-                importStatus.className = 'import-status error';
-            } else {
-                importStatus.textContent = `更新完成，成功 ${successCount}`;
-                importStatus.className = 'import-status success';
-            }
-        } catch (error) {
-            importStatus.textContent = '更新失败: ' + error.message;
-            importStatus.className = 'import-status error';
-        } finally {
-            updateAllBtn.disabled = false;
-            setTimeout(() => {
-                setUpdateProgressVisible(false);
-            }, 5000);
-        }
-    }
 
-    async function updateSingleVocabulary(vocab, updateButton) {
-        const originalText = updateButton.textContent;
-        updateButton.disabled = true;
-        updateButton.textContent = '更新中...';
-        if (updateAllBtn) {
-            updateAllBtn.disabled = true;
-        }
-        setUpdateProgressVisible(true);
-        if (updateOverall) {
-            updateOverall.style.display = 'none';
-        }
-        updateCurrentProgress(`更新中: ${vocab.name || '未命名词库'}`, 0);
-        importStatus.textContent = `正在更新: ${vocab.name || '未命名词库'}`;
-        importStatus.className = 'import-status importing';
-        try {
-            const dictionaries = await fetchServerDictionaryIndex();
-            const dict = findServerDictByName(dictionaries, vocab.name);
-            if (!dict) {
-                throw new Error('服务器未找到该词库');
-            }
-            const result = await chrome.storage.local.get('vocabularies');
-            let vocabList = result.vocabularies || [];
-            vocabList = await updateVocabularyEntry(vocabList, vocab, dict, (percent) => {
-                updateCurrentProgress(`更新中: ${dict.name || vocab.name || '未命名词库'}`, percent);
-            });
-            await finalizeVocabulariesUpdate(vocabList);
-            importStatus.textContent = `更新成功: ${dict.name || vocab.name || '未命名词库'}`;
-            importStatus.className = 'import-status success';
-        } catch (error) {
-            importStatus.textContent = '更新失败: ' + error.message;
-            importStatus.className = 'import-status error';
-        } finally {
-            updateButton.disabled = false;
-            updateButton.textContent = originalText;
-            if (updateAllBtn) {
-                updateAllBtn.disabled = false;
-            }
-            setTimeout(() => {
-                setUpdateProgressVisible(false);
-            }, 5000);
-        }
-    }
-
-    // 格式化文件大小
-    */
     async function startUpdateAll() {
         lastUpdateAction = {type: 'all'};
         updateCancelRequested = false;
@@ -2318,7 +2978,7 @@ function openUpdateModal() {
         });
     }
 
-async function updateAllVocabulariesNew() {
+    async function updateAllVocabulariesNew() {
         if (!updateAllBtn) {
             return;
         }
@@ -2560,7 +3220,8 @@ async function updateAllVocabulariesNew() {
             'cnToEnOrder',
             'enToCnOrder',
             'disableAnnotationUnderline',
-            'disableAnnotationTooltip',
+            'annotationWordCardPopupEnabled',
+            'wordCardHighlightMatchedChinese',
             'smartSkipCodeLinks',
             'smartSkipEditableTextboxes',
             'searchProvider',
@@ -2568,6 +3229,7 @@ async function updateAllVocabulariesNew() {
             'blockedWords',
             'favoriteWords',
             'siteBlockRules',
+            'siteBlockMode',
             'dedupeMode',
             'dedupeRepeatCount',
             'dedupeCooldownSeconds',
@@ -2586,7 +3248,8 @@ async function updateAllVocabulariesNew() {
         const cnToEnOrder = result.cnToEnOrder || 'source-first';
         const enToCnOrder = result.enToCnOrder || 'source-first';
         const disableAnnotationUnderline = result.disableAnnotationUnderline === true;
-        const disableAnnotationTooltip = result.disableAnnotationTooltip === true;
+        const annotationWordCardPopupEnabled = result.annotationWordCardPopupEnabled !== false;
+        const wordCardHighlightMatchedChinese = result.wordCardHighlightMatchedChinese !== false;
         const smartSkipCodeLinks = result.smartSkipCodeLinks !== false;
         const smartSkipEditableTextboxes = result.smartSkipEditableTextboxes !== false;
         const searchProvider = result.searchProvider || 'youdao';
@@ -2600,6 +3263,7 @@ async function updateAllVocabulariesNew() {
         siteBlockRules = Array.isArray(result.siteBlockRules)
             ? result.siteBlockRules.map(normalizeSiteRule).filter(Boolean)
             : [];
+        siteBlockMode = result.siteBlockMode === 'whitelist' ? 'whitelist' : 'blacklist';
         const debugMode = result.debugMode === true;
         let dedupeMode = result.dedupeMode || 'page';
         if (dedupeMode === 'cooldown') {
@@ -2619,6 +3283,11 @@ async function updateAllVocabulariesNew() {
         const dedupeSliderValue = dedupeMode in reverseDedupeModeMap ? reverseDedupeModeMap[dedupeMode] : 1;
         dedupeModeSlider.value = dedupeSliderValue;
         updateDedupeModeSliderUI(dedupeSliderValue);
+        if (siteBlockModeSlider) {
+            const siteBlockModeSliderValue = siteBlockMode in reverseSiteBlockModeMap ? reverseSiteBlockModeMap[siteBlockMode] : 0;
+            siteBlockModeSlider.value = siteBlockModeSliderValue;
+            updateSiteBlockModeSliderUI(siteBlockModeSliderValue);
+        }
         updateMaxMatchesUI(maxMatches);
         minTextLengthSlider.value = minLength;
         minTextLengthLabel.textContent = minLength;
@@ -2642,8 +3311,11 @@ async function updateAllVocabulariesNew() {
         if (disableAnnotationUnderlineToggle) {
             disableAnnotationUnderlineToggle.checked = disableAnnotationUnderline;
         }
-        if (disableAnnotationTooltipToggle) {
-            disableAnnotationTooltipToggle.checked = disableAnnotationTooltip;
+        if (annotationWordCardPopupEnabledToggle) {
+            annotationWordCardPopupEnabledToggle.checked = annotationWordCardPopupEnabled;
+        }
+        if (wordCardHighlightMatchedChineseToggle) {
+            wordCardHighlightMatchedChineseToggle.checked = wordCardHighlightMatchedChinese;
         }
         updateHighlightControls(highlightMode);
         smartSkipCodeLinksToggle.checked = smartSkipCodeLinks;

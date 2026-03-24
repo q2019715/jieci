@@ -49,11 +49,15 @@
         <span class="label-text">插件工作模式</span>
         <button class="help-icon" type="button" aria-label="帮助">
           ?
-          <span class="help-tooltip">这个选项控制插件改写内容的模式。关闭代表不会改写内容；下划线模式下插件会在匹配的单词下面画下划线，您可以将鼠标放到对应的单词上面查看单词详情；标注模式下插件不仅会在对应单词下画下划线，并且会将对应外文放在右侧括号中</span>
+          <span class="help-tooltip">这个选项控制插件改写内容的模式。<br>
+            - 关闭：插件停止工作<br>
+            - 下划线：在匹配的单词下划线，鼠标放置在单词上可触发单词卡片<br>
+            - 标注：插件会在原词右侧显示括号内容（可在设置中调整为在左边），鼠标放置在单词上可触发单词卡片<br>
+            - 替换：插件会直接将原词替换为目标词。鼠标放置在单词上可触发单词卡片</span>
         </button>
       </label>
       <div class="mode-slider-container">
-        <input type="range" id="displayModeSlider" min="0" max="2" step="1" value="0" aria-label="插件工作模式">
+        <input type="range" id="displayModeSlider" min="0" max="3" step="1" value="0" aria-label="插件工作模式">
         <div class="mode-slider-track">
           <div class="mode-slider-thumb"></div>
         </div>
@@ -61,25 +65,30 @@
           <span class="mode-label" data-mode="0">关闭</span>
           <span class="mode-label" data-mode="1">下划线</span>
           <span class="mode-label" data-mode="2">标注</span>
+          <span class="mode-label" data-mode="3">替换</span>
         </div>
       </div>
     </div>
 
-
-
-    <div class="control-section">
-      <label class="setting-label">
-        <span class="label-text">想让插件不标注此网站？</span>
-        <button class="help-icon" type="button" aria-label="帮助">
-          ?
-          <span class="help-tooltip">点击右侧 以后不再标注此网站"按钮，即可让插件在此网站上禁用。如果您改变了主意，您可以点击 ：“此网站已禁用标记，点此取消”按钮，将禁用规则给删掉</span>
-        </button>
-      </label>
-      <button id="blockSiteBtn" class="btn btn-secondary" type="button">以后不再标注此网站</button>
-    </div>
-
-
-    <div class="quick-grid">
+    <!-- AI Settings Section -->
+        <div class="control-section" id="siteBlockQuickCard">
+          <label class="setting-label">
+            <span class="label-text" id="siteBlockQuickTitle">想让插件不标注此网站？</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip" id="siteBlockQuickTooltip">点击右侧“以后不再标注此网站”按钮，即可让插件在此网站上禁用。如果您改变了主意，可以再次点击按钮取消。</span>
+            </button>
+          </label>
+          <div class="site-block-actions">
+            <button id="blockSiteBtn" class="btn btn-secondary" type="button">以后不再标注此网站</button>
+            <button id="blockSiteRuleBtn" class="site-block-corner-btn" type="button" aria-label="打开网站禁用规则配置">
+              ◿
+            </button>
+          </div>
+        </div>
+    
+    
+        <div class="quick-grid">
       <button id="quickFavorites" class="quick-tile" type="button">
         <span class="quick-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" role="img">
@@ -131,6 +140,7 @@
     </div>
     <div class="settings-section">
       <div class="settings-content" id="vocabularyContent">
+
         <div class="import-controls">
           <input type="file" id="fileInput" accept=".json" multiple style="display: none;">
           <button id="downloadBtn" class="btn btn-primary">从服务器下载整理好的词库</button>
@@ -154,15 +164,15 @@
 
     <div class="settings-list">
       <button class="settings-row" id="styleNav" type="button">
-        <span class="row-title">插件标注样式设置</span>
+        <span class="row-title">段落内标注样式设置</span>
         <span class="row-arrow" aria-hidden="true">›</span>
       </button>
       <button class="settings-row" id="annotationNav" type="button">
-        <span class="row-title">标注行为设置</span>
+        <span class="row-title">段落内标注行为设置</span>
         <span class="row-arrow" aria-hidden="true">›</span>
       </button>
       <button class="settings-row" id="searchNav" type="button">
-        <span class="row-title">一键查词与发音功能设置</span>
+        <span class="row-title">单词卡片设置</span>
         <span class="row-arrow" aria-hidden="true">›</span>
       </button>
       <button class="settings-row" id="vocabularyNav" type="button">
@@ -178,7 +188,7 @@
         <span class="row-arrow" aria-hidden="true">›</span>
       </button>
       <button class="settings-row" id="siteBlockNav" type="button">
-        <span class="row-title">屏蔽的网站管理</span>
+        <span class="row-title">网站黑白名单设置</span>
         <span class="row-arrow" aria-hidden="true">›</span>
       </button>
       <button class="settings-row" id="aboutNav" type="button">
@@ -188,29 +198,16 @@
     </div>
   </div>
 
+
   <div class="page" id="pageStyle">
     <div class="page-header">
       <button class="page-back-btn" id="styleBack" type="button" aria-label="返回">←</button>
-      <div class="page-title">插件标注样式设置</div>
+      <div class="page-title">段落内标注样式设置</div>
     </div>
     <div class="settings-section">
       <div class="settings-content settings-list">
-        <div class="setting-item stacked">
-          <label for="highlightMode" class="setting-label">
-            <span class="label-text">标注颜色</span>
-            <button class="help-icon" type="button" aria-label="帮助">
-              ?
-              <span class="help-tooltip">这里用于设置被标注的颜色，被标注的单词会变成这里设定的颜色，自动的话插件会自己选择一个颜色（虽然不一定美观哦）</span>
-            </button>
-          </label>
-          <div class="color-row">
-            <select id="highlightMode">
-              <option value="none">不更改颜色</option>
-              <option value="auto">自动</option>
-              <option value="custom">自定义</option>
-            </select>
-            <input type="color" id="highlightColor" value="#2196f3" aria-label="标注颜色选择器">
-          </div>
+        <div class="setting-divider" role="separator" aria-label="翻译顺序设置">
+          <span>段落标注中英顺序设置</span>
         </div>
         <div class="setting-item stacked">
           <label for="cnToEnOrder" class="setting-label">
@@ -238,13 +235,39 @@
             <option value="target-first">中文在前，英文在后</option>
           </select>
         </div>
+        <div class="setting-divider" role="separator" aria-label="其他">
+          <span>其他相关设置</span>
+        </div>
+        <div class="setting-item stacked">
+          <label for="highlightMode" class="setting-label">
+            <span class="label-text">标注颜色</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip">这里用于设置被标注的内容在段落中的颜色<br>
+                - 不更改颜色（推荐）:被标注的内容将会是原本的颜色<br>
+                - 自动：插件会按照我预设的逻辑选择一个颜色（虽然不一定美观哦）<br>
+                - 自定义：可以将标记内容设置为一个自己喜欢的颜色
+                <br>
+              </span>
+            </button>
+          </label>
+          <div class="color-row">
+            <select id="highlightMode">
+              <option value="none">不更改颜色</option>
+              <option value="auto">自动</option>
+              <option value="custom">自定义</option>
+            </select>
+            <input type="color" id="highlightColor" value="#2196f3" aria-label="标注颜色选择器">
+          </div>
+        </div>
         <div class="setting-item smart-toggle-row">
           <div class="setting-main">
             <label for="disableAnnotationUnderline" class="setting-label">
-              <span class="label-text">关闭标注模式下的下划线</span>
+              <span class="label-text">关闭替换内容的下划线</span>
               <button class="help-icon" type="button" aria-label="帮助">
                 ?
-                <span class="help-tooltip">仅在标注模式下生效</span>
+                <span class="help-tooltip">打开此功能开关 在标注和替换模式下 被标注的内容下面不会有下划线显示<br>
+                注意，下划线标记仍会在下划线模式下出现</span>
               </button>
             </label>
             <label class="switch">
@@ -253,32 +276,10 @@
             </label>
           </div>
         </div>
-        <div class="setting-item smart-toggle-row">
-          <div class="setting-main">
-            <label for="disableAnnotationTooltip" class="setting-label">
-              <span class="label-text">关闭标注模式下的单词弹窗</span>
-              <button class="help-icon" type="button" aria-label="帮助">
-                ?
-                <span class="help-tooltip">仅在标注模式下生效</span>
-              </button>
-            </label>
-            <label class="switch">
-              <input type="checkbox" id="disableAnnotationTooltip">
-              <span class="slider"></span>
-            </label>
-          </div>
+        <div class="setting-divider" role="separator" aria-label="空白占位">
+          <span> </span>
         </div>
-        <div class="setting-item">
-          <label class="setting-label">
-            <span class="label-text">单词弹窗大小</span>
-            <button class="help-icon" type="button" aria-label="帮助">
-              ?
-              <span class="help-tooltip">插件记忆上次弹窗手动设置的大小，但是如果出现问题的话，您可以点击强制将记忆的弹窗大小恢复默认</span>
-            </button>
-          </label>
-          <button id="resetPopupSize" class="btn btn-secondary">重置</button>
-          <span id="resetPopupSizeStatus" class="setting-hint"></span>
-        </div>
+
       </div>
     </div>
   </div>
@@ -286,16 +287,30 @@
   <div class="page" id="pageAnnotation">
     <div class="page-header">
       <button class="page-back-btn" id="annotationBack" type="button" aria-label="返回">←</button>
-      <div class="page-title">标注行为设置</div>
+      <div class="page-title">段落内标注行为设置</div>
     </div>
     <div class="settings-section">
       <div class="settings-content settings-list">
+        <div class="setting-divider" role="separator" aria-label="标注智能匹配设置">
+          <span>AI辅助功能设置</span>
+        </div>
+        <button class="settings-row" id="annotationToAISettingsBtn" type="button">
+          <span class="row-title">AI辅助标注设置</span>
+          <span class="row-arrow" aria-hidden="true">›</span>
+        </button>
+        <div class="setting-divider" role="separator" aria-label="标注行为设置">
+          <span>标注行为设置</span>
+        </div>
         <div class="setting-item mode-setting">
           <label class="setting-label">
-            <span class="label-text">标注模式</span>
+            <span class="label-text">标注模式设置</span>
             <button class="help-icon" type="button" aria-label="帮助">
               ?
-              <span class="help-tooltip">这里配置插件是将中文改写为英文还是英文改写为中文，自动模式下插件会自行进行选择</span>
+              <span class="help-tooltip">这项设置决定了插件了插件改写哪些语言的内容<br>
+              - 自动模式：（推荐）插件会自行进行选择 <br>
+              - 中→英：仅将网页中的中文内容转化为英文标注<br>
+              - 英→中：仅将网页中的英文内容转化为中文标注<br>
+              </span>
             </button>
           </label>
           <div class="mode-slider-container">
@@ -313,10 +328,13 @@
 
         <div class="setting-item mode-setting">
           <label class="setting-label">
-            <span class="label-text">智能去重</span>
+            <span class="label-text">智能标注去重</span>
             <button class="help-icon" type="button" aria-label="帮助">
               ?
-              <span class="help-tooltip">这个选项用来控制一个单词出现的频率。关闭状态下插件不会控制一个页面上某个单词被标注的次数；单网页内不重复会让一个单词在一个网页中只被标记一次；一定次数内不重复会让一个单词被标注了一次后一定次数内不会被再次标注（具体次数可以在高级设置中进行配置）</span>
+              <span class="help-tooltip">这个选项用来控制一个单词被标注的频率。<br>
+                - 关闭：插件不会控制一个页面上某个单词被标注的次数；<br>
+                - 单网页内不重复：（默认）让一个单词在一个网页中只被标记一次；<br>
+                - 一定次数内不重复：让一个单词被标注了一次后一定次数内不会被再次标注</span>
             </button>
           </label>
           <div class="mode-slider-container">
@@ -332,19 +350,32 @@
           </div>
         </div>
 
-        <div class="setting-item stacked">
-          <label for="maxMatchesSlider" class="setting-label">
-            <span class="label-text">单句标注上限</span>
+        <div id="dedupeRepeatCountSetting" class="setting-item stacked">
+          <label for="dedupeRepeatCount" class="setting-label">
+            <span class="label-text">单个单词标注去重间隔次数</span>
             <button class="help-icon" type="button" aria-label="帮助">
               ?
-              <span class="help-tooltip">这里设置了一个段落中单个句子允许改写单词数量上限，最低为1 最高无限。（备注，有时候较短的内容可能被认为是多个段落，具体效果得看目标网站的实现）</span>
+              <span class="help-tooltip">仅在“一定次数内不重复”模式下生效。这个值决定了一个单词被标记后多少次才能再次出现</span>
             </button>
           </label>
           <div class="range-row">
-            <input type="range" id="maxMatchesSlider" min="1" max="9" value="3">
-            <span id="maxMatchesLabel" class="range-label">3</span>
-            <input type="number" id="maxMatchesInput" min="0" value="3" aria-label="单句标注上限">
+            <input type="range" id="dedupeRepeatCount" min="10" max="200" value="50" step="10">
+            <span id="dedupeRepeatCountLabel" class="range-label">50</span>
           </div>
+        </div>
+
+        <div id="clearDedupeCountsSetting" class="setting-item">
+          <label for="clearDedupeCounts" class="setting-label">
+            <span class="label-text">删除单词次数统计</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip">清除掉去重次数的间隔记录（即重新开始记录单词标记次数）</span>
+            </button>
+          </label>
+          <button id="clearDedupeCounts" class="btn btn-delete">删除</button>
+        </div>
+        <div class="setting-divider" role="separator" aria-label="设置跳过标注部分页面元素">
+          <span>设置跳过标注部分页面元素</span>
         </div>
 
         <div class="setting-item smart-toggle-row">
@@ -353,7 +384,7 @@
               <span class="label-text">智能跳过代码链接</span>
               <button class="help-icon" type="button" aria-label="帮助">
                 ?
-                <span class="help-tooltip">强烈建议开启，避免将网页链接内容与代码内容进行改写</span>
+                <span class="help-tooltip">强烈建议开启，避免将网页链接内容与代码内容进行标注</span>
               </button>
             </label>
             <label class="switch">
@@ -369,7 +400,7 @@
               <span class="label-text">智能跳过可编辑文本框</span>
               <button class="help-icon" type="button" aria-label="帮助">
                 ?
-                <span class="help-tooltip">强烈建议开启，避免将正在编辑的输入区域内容进行改写（如富文本编辑器）</span>
+                <span class="help-tooltip">强烈建议开启，避免将正在编辑的输入区域内容进行改写（如富文本编辑器、Wordpress古登堡）</span>
               </button>
             </label>
             <label class="switch">
@@ -379,12 +410,35 @@
           </div>
         </div>
 
+        <div class="setting-divider" role="separator" aria-label="标注参数设置">
+          <span>标注参数设置</span>
+        </div>
+
+        <div class="setting-item stacked">
+          <label for="maxMatchesSlider" class="setting-label">
+            <span class="label-text">单句标注上限</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip">这里设置了一个段落中单个句子允许改写单词数量的上限，最低为1 最高无限。<br>
+                （备注，有时候较短的内容可能被认为是多个段落，具体工作效果取决于目标网站）</span>
+            </button>
+          </label>
+          <div class="range-row">
+            <input type="range" id="maxMatchesSlider" min="1" max="9" value="3">
+            <span id="maxMatchesLabel" class="range-label">3</span>
+            <input type="number" id="maxMatchesInput" min="0" value="3" aria-label="单句标注上限">
+          </div>
+        </div>
+
+
+
         <div class="setting-item stacked">
           <label for="minTextLength" class="setting-label">
             <span class="label-text">容器最小字数</span>
             <button class="help-icon" type="button" aria-label="帮助">
               ?
-              <span class="help-tooltip">如果网页上某一块内容中字数少于这个值，那么跳过标记，避免将标题等短内容标记了导致页面不好看，推荐值为10</span>
+              <span class="help-tooltip">如果网页上某一块内容中字数少于这个值，那么跳过标记，避免将标题等短内容标记了导致页面不好看，推荐值为10<br>
+              注：这个值是按照字来计算的 "你好"与"hi"都算作两个字</span>
             </button>
           </label>
           <div class="range-row">
@@ -392,45 +446,288 @@
             <span id="minTextLengthLabel" class="range-label">10</span>
           </div>
         </div>
-
-        <div class="setting-item stacked">
-          <label for="dedupeRepeatCount" class="setting-label">
-            <span class="label-text">去重间隔次数</span>
-            <button class="help-icon" type="button" aria-label="帮助">
-              ?
-              <span class="help-tooltip">仅在“一定次数内不重复”模式下生效，一个单词被标记后多少次才能再次出现</span>
-            </button>
-          </label>
-          <div class="range-row">
-            <input type="range" id="dedupeRepeatCount" min="10" max="200" value="50" step="10">
-            <span id="dedupeRepeatCountLabel" class="range-label">50</span>
-          </div>
+        <div class="setting-divider" role="separator" aria-label="空白占位符">
+          <span> </span>
         </div>
-
-        <div class="setting-item">
-          <label for="clearDedupeCounts" class="setting-label">
-            <span class="label-text">删除单词次数统计</span>
-            <button class="help-icon" type="button" aria-label="帮助">
-              ?
-              <span class="help-tooltip">清除掉去重次数的间隔记录（即重新开始记录单词标记次数）</span>
-            </button>
-          </label>
-          <button id="clearDedupeCounts" class="btn btn-delete">删除</button>
+        <div class="setting-divider" role="separator" aria-label="空白占位符">
+          <span> </span>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="page" id="pageSearch">
+
+  <div class="page" id="pageAISettings">
     <div class="page-header">
-      <button class="page-back-btn" id="searchBack" type="button" aria-label="返回">←</button>
-      <div class="page-title">一键查词与发音功能设置</div>
+      <button class="page-back-btn" id="aiSettingsBack" type="button" aria-label="返回">←</button>
+      <div class="page-title">AI辅助标注设置</div>
     </div>
     <div class="settings-section">
       <div class="settings-content settings-list">
+        <div class="setting-item stacked">
+          <div class="word-tip" role="note" aria-live="polite">
+          <span class="word-tip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path fill="currentColor" d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.75V18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.25A7 7 0 0 0 12 2zm3 11.65-1 .58V17h-4v-2.77l-1-.58A5 5 0 1 1 15 13.65z"/>
+            </svg>
+          </span>
+            <span class="word-tip-text">此功能正在beta测试中，碰到问题请<a target="_blank" rel="noopener noreferrer" href="https://jieci.top/contact_us.html" >及时联系我们</a>
+              <br>电脑没有足够性能请勿启用此功能！
+              <br>通过使用端侧向量化模型进行语义匹配，此功能能让标注单词更加贴合原文语义
+              <br>由于开启后标注需要加载机器学习模型，标注所需时间可能相较之前有大幅增加
+            </span>
+          </div>
+          <div class="setting-divider" role="separator" aria-label="标注行为设置">
+            <span>AI功能总设置</span>
+          </div>
+          <label class="setting-label">
+            <span class="label-text">AI工作模式设置</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip">此选项用于设置AI的工作模式。必须要先下载好模型权重才可以启用AI功能<br>
+              - 不进行AI计算：AI功能关闭<br>
+              - 开启AI，且使用端侧 CPU 进行计算：启用AI模型，并尝试在底层使用CPU（处理器）运行模型<br>
+              - 开启AI，且使用端侧 GPU 进行计算：启用AI模型，并尝试在底层使用GPU(显卡）运行模型  <br>
+              - 开启AI，且使用端侧 NPU 进行计算：启用AI模型，并尝试使用NPU（神经网络加速器）运行模型，此选项未经测试，不推荐使用  <br>
+              </span>
+            </button>
+          </label>
+          <select id="aiModeSelect" class="setting-select">
+            <option value="none">不进行AI计算</option>
+            <option value="cpu">开启AI，且使用端侧 CPU 进行计算</option>
+            <option value="gpu">开启AI，且使用端侧 GPU 进行计算</option>
+            <option value="npu">开启AI，且使用端侧 NPU 进行计算（不推荐，此选项不稳定）</option>
+          </select>
+          <div id="aiModeErrorHint" class="setting-hint ai-mode-error-hint" style="display: none;"></div>
+        </div>
+
+        <div id="aiModelSourceSection" class="setting-item stacked" style="display: none;">
+          <div class="setting-label ai-model-header">
+            <span class="ai-model-header-left">
+              <span class="label-text">AI 模型权重下载状态</span>
+              <button class="help-icon" type="button" aria-label="帮助">
+                ?
+                <span class="help-tooltip">查看AI模型权重下载状态。AI模型大约0.1G。下载的时候请勿关闭本插件页面</span>
+              </button>
+            </span>
+            <div class="download-actions ai-model-actions">
+              <button id="aiDownloadBtn" class="btn btn-secondary" type="button">下载模型</button>
+              <button id="aiUninstallBtn" class="btn btn-delete" type="button">卸载模型</button>
+            </div>
+          </div>
+          <div id="aiModelStatus" class="setting-hint" style="margin-top: 8px;">模型状态：检测中...</div>
+          <div id="aiDownloadSection" style="margin-top: 8px; display: block;">
+            <div id="aiDownloadProgressWrap" style="margin-top: 8px; display: none;">
+              <div class="progress-info">
+                <span id="aiDownloadText">下载中...</span>
+                <span id="aiDownloadPercent">0%</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div id="aiDownloadBar" class="progress-bar-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="aiTriggerDivider" class="setting-divider" role="separator" aria-label="标注行为设置">
+          <span>AI触发条件设置</span>
+        </div>
+        <div id="aiTriggerSection" class="setting-item stacked" style="display: none;">
+          <label class="setting-label">
+            <span class="label-text">AI 触发条件</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip">控制插件再标注的过程中如何调用AI<br>
+              - 只对出现冲突的词组使用 AI 选择:当某个词有两个冲突的中文意义的时候才会调用AI来判断哪个词语义最为接近,系统占用性能较低<br>
+              - 对所有将要标记的词组使用 AI 选择 ：默认选项，对所有的候选词都会使用AI进行比对<br>
+              </span>
+            </button>
+          </label>
+          <select id="aiTriggerSelect" class="setting-select">
+            <option value="conflict">只对出现冲突的词组使用 AI 选择</option>
+            <option value="all" selected>对所有将要标记的词组使用 AI 选择 (默认)</option>
+          </select>
+        </div>
+        <div id="aiParamsDivider" class="setting-divider" role="separator" aria-label="标注行为设置">
+          <span>AI相关参数设置</span>
+        </div>
+        <div id="aiThresholdSection" class="setting-item stacked" style="display: none;">
+          <label class="setting-label">
+            <span class="label-text">AI语义匹配阈值过滤设置</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip">这个的阈值指的是语义相似度，值越大，代表语义越相似。<br>
+              （您可以用鼠标放置在被标注的单词的卡片中的词性标记板块，查看某单词在这个句子中的语义相似度）<br>
+                当单词语义相似度低于下面的设置，该单词将不会被标记。
+              </span>
+            </button>
+          </label>
+          <div class="range-row">
+            <div style="flex: 1; position: relative;">
+              <input type="range" id="aiThresholdSlider" min="0.1" max="0.9" step="0.05" value="0.5" style="width: 100%; display: block;">
+              <div style="position: relative; height: 24px; margin-top: 2px;">
+                <!-- 刻度线 -->
+                <div style="position: absolute; left: 18.75%; top: 0; width: 1px; height: 6px; background: #999; transform: translateX(-50%);"></div>
+                <div style="position: absolute; left: 50%; top: 0; width: 1px; height: 6px; background: #999; transform: translateX(-50%);"></div>
+                <div style="position: absolute; left: 81.25%; top: 0; width: 1px; height: 6px; background: #999; transform: translateX(-50%);"></div>
+
+                <!-- 文字说明 -->
+                <span style="position: absolute; left: 18.75%; top: 8px; transform: translateX(-50%); font-size: 10px; color: #999; white-space: nowrap;">(荐）对语义相似度要求较低</span>
+                <span style="position: absolute; left: 50%; top: 8px; transform: translateX(-50%); font-size: 10px; color: #999; white-space: nowrap;">对语义相似度较为严格</span>
+                <span style="position: absolute; left: 81.25%; top: 8px; transform: translateX(-50%); font-size: 10px; color: #999; white-space: nowrap;">对语义相似度要求极高</span>
+              </div>
+            </div>
+            <span id="aiThresholdLabel" class="range-label">0.50</span>
+          </div>
+        </div>
+
+        <div id="aiDelaySection" class="setting-item stacked" style="display: none;">
+          <label class="setting-label">
+            <span class="label-text">AI 处理防卡顿延迟</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip">设置每处理一个词后的停顿时间。当您电脑使用AI功能会有卡顿的时候，可以尝试使用本功能降低电脑处理压力。
+              <br>
+                备注:为了降低电脑压力，以及减少代码复杂度，本程序所有的AI推理是单线程实现，不会进行并行推理。<br>
+                将此值设置过大会导致标记速度过慢
+              </span>
+            </button>
+          </label>
+          <div class="range-row">
+            <div style="flex: 1; position: relative;">
+              <input type="range" id="aiDelaySlider" min="0" max="100" step="5" value="0" style="width: 100%; display: block;">
+              <div style="position: relative; height: 38px; margin-top: 2px;">
+                <!-- 10ms (上层) -->
+                <div style="position: absolute; left: 10%; top: 0; width: 1px; height: 6px; background: #999; transform: translateX(-50%);"></div>
+                <span style="position: absolute; left: 10%; top: 8px; font-size: 10px; color: #999; white-space: nowrap;">电脑压力较高，处理效率较高</span>
+
+                <!-- 75ms (上层) -->
+                <div style="position: absolute; left: 75%; top: 0; width: 1px; height: 6px; background: #999; transform: translateX(-50%);"></div>
+                <span style="position: absolute; left: 75%; top: 8px; transform: translateX(-50%); font-size: 10px; color: #999; white-space: nowrap;">电脑压力低，处理效率低</span>
+
+                <!-- 0ms (下层 - 长刻度线) -->
+                <div style="position: absolute; left: 1%; top: 0; width: 1px; height: 20px; background: #ccc;"></div>
+                <span style="position: absolute; left: 0%; top: 22px; font-size: 10px; color: #999; white-space: nowrap;">电脑压力高，处理效率高</span>
+
+                <!-- 50ms (下层 - 长刻度线) -->
+                <div style="position: absolute; left: 50%; top: 0; width: 1px; height: 20px; background: #ccc; transform: translateX(-50%);"></div>
+                <span style="position: absolute; left: 50%; top: 22px; transform: translateX(-50%); font-size: 10px; color: #999; white-space: nowrap;">电脑压力中，处理效率中</span>
+              </div>
+            </div>
+            <span id="aiDelayLabel" class="range-label">0ms</span>
+          </div>
+        </div>
+
+        <div id="aiTimeoutSection" class="setting-item stacked" style="display: none;">
+          <label class="setting-label">
+            <span class="label-text">AI 后台会话超时释放时间设置</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip">
+                为了减少插件的权限需求，插件无法实时得知正在被标记的标签页是否被您关闭。
+                <br>这样就导致了，即使关闭了标签页，插件的AI模块会仍然尝试继续分析被关闭的标签页中的内容。
+                <br>所以，我们引用了超时时间设置。如果某个标签页自从上个AI请求过后相隔一段时间后没有任何响应。
+                插件就认为这个页面已经关闭。清空掉该页面的待处理队列。
+              </span>
+            </button>
+          </label>
+          <div class="range-row">
+            <div style="flex: 1; position: relative;">
+              <input type="range" id="aiTimeoutSlider" min="1" max="15" step="1" value="5" style="width: 100%; display: block;">
+              <div style="position: relative; height: 24px; margin-top: 2px;">
+                <div style="position: absolute; left: 18%; top: 0; width: 1px; height: 6px; background: #999; transform: translateX(-50%);"></div>
+                <div style="position: absolute; left: 50%; top: 0; width: 1px; height: 6px; background: #999; transform: translateX(-50%);"></div>
+                <div style="position: absolute; left: 82%; top: 0; width: 1px; height: 6px; background: #999; transform: translateX(-50%);"></div>
+                <span style="position: absolute; left: 18%; top: 8px; transform: translateX(-50%); font-size: 10px; color: #999; white-space: nowrap;">更快回收</span>
+                <span style="position: absolute; left: 50%; top: 8px; transform: translateX(-50%); font-size: 10px; color: #999; white-space: nowrap;">中等速率</span>
+                <span style="position: absolute; left: 82%; top: 8px; transform: translateX(-50%); font-size: 10px; color: #999; white-space: nowrap;">更慢回收</span>
+              </div>
+            </div>
+            <span id="aiTimeoutLabel" class="range-label">5s</span>
+          </div>
+        </div>
+        <div id="aiBenchmarkDivider" class="setting-divider" role="separator" aria-label="AI推理测试">
+          <span>AI推理测试</span>
+        </div>
+        <div id="aiBenchmarkSection" class="setting-item stacked" style="display: none;">
+          <label class="setting-label">
+            <span class="label-text">测试AI推理功能</span>
+          </label>
+          <div class="benchmark-container">
+            <button id="runBenchmarkBtn" class="btn btn-secondary">测试电脑AI推理速度</button>
+            <div id="benchmarkResult" class="benchmark-result">
+              <span class="speed-label">速度:</span>
+              <span id="speedValue">--</span>
+              <span class="speed-unit">字/秒</span>
+            </div>
+          </div>
+          <div id="benchmarkSuggestion" class="setting-hint" style="margin-top: 8px; display: none;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <div class="page" id="pageSearch">
+    <div class="page-header">
+      <button class="page-back-btn" id="searchBack" type="button" aria-label="返回">←</button>
+      <div class="page-title">单词卡片设置</div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-content settings-list">
+        <div class="setting-divider" role="separator" aria-label="功能开关设置">
+          <span>功能开关设置</span>
+        </div>
+        <div class="setting-item smart-toggle-row">
+          <div class="setting-main">
+            <label for="annotationWordCardPopupEnabled" class="setting-label">
+              <span class="label-text">单词弹窗功能开关</span>
+              <button class="help-icon" type="button" aria-label="帮助">
+                ?
+                <span class="help-tooltip">仅在标注模式下生效。开启后会显示单词弹窗。</span>
+              </button>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="annotationWordCardPopupEnabled" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="setting-divider" role="separator" aria-label="卡片样式设置">
+          <span>卡片样式设置</span>
+        </div>
+        <div class="setting-item smart-toggle-row">
+          <div class="setting-main">
+            <label for="wordCardHighlightMatchedChinese" class="setting-label">
+              <span class="label-text">卡片中高亮显示匹配的中文单词</span>
+              <button class="help-icon" type="button" aria-label="帮助">
+                ?
+                <span class="help-tooltip">仅在中→英模式下生效。开启后，单词弹窗里会加粗命中的中文释义。</span>
+              </button>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="wordCardHighlightMatchedChinese" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="setting-item">
+          <label class="setting-label">
+            <span class="label-text">单词弹窗大小</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip">插件记忆上次弹窗手动设置的大小，但是如果出现问题的话，您可以点击强制将记忆的弹窗大小恢复默认</span>
+            </button>
+          </label>
+          <button id="resetPopupSize" class="btn btn-secondary">重置</button>
+          <span id="resetPopupSizeStatus" class="setting-hint"></span>
+        </div>
+        <div class="setting-divider" role="separator" aria-label="卡片行为设置">
+          <span>卡片行为设置</span>
+        </div>
         <div class="setting-item">
           <label for="searchProviderSelect" class="setting-label">
-            <span class="label-text">默认查词网页</span>
+            <span class="label-text">默认查词站点</span>
           </label>
           <button class="help-icon" type="button" aria-label="帮助">
             ?
@@ -462,6 +759,10 @@
           <select id="speechVoiceSelect">
             <option value="">系统默认</option>
           </select>
+          <div class="speech-test-actions">
+            <button id="testChineseVoiceBtn" class="btn btn-secondary" type="button">播放中文发音</button>
+            <button id="testEnglishVoiceBtn" class="btn btn-secondary" type="button">测试英文发音</button>
+          </div>
         </div>
       </div>
     </div>
@@ -534,7 +835,7 @@
   <div class="page" id="pageSiteBlock">
     <div class="page-header">
       <button class="page-back-btn" id="siteBlockBack" type="button" aria-label="返回">←</button>
-      <div class="page-title">网站黑名单</div>
+      <div class="page-title" id="siteBlockPageTitle">网站黑白名单管理</div>
     </div>
     <div class="settings-section">
       <div class="settings-content">
@@ -544,20 +845,85 @@
               <path fill="currentColor" d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.75V18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.25A7 7 0 0 0 12 2zm3 11.65-1 .58V17h-4v-2.77l-1-.58A5 5 0 1 1 15 13.65z"/>
             </svg>
           </span>
-          <span class="word-tip-text">可以配置在哪些网站上插件不进行工作</span>
+          <span class="word-tip-text" id="siteBlockTipText">可以在这里设置插件工作在黑名单模式还是白名单模式</span>
+        </div>
+        <div class="setting-item mode-setting">
+          <label class="setting-label">
+            <span class="label-text">插件工作模式</span>
+          </label>
+          <div class="mode-slider-container">
+            <input type="range" id="siteBlockModeSlider" min="0" max="1" step="1" value="0" aria-label="网站屏蔽模式">
+            <div class="mode-slider-track">
+              <div class="mode-slider-thumb"></div>
+            </div>
+            <div class="mode-labels">
+              <span class="mode-label" data-mode="0">黑名单模式</span>
+              <span class="mode-label" data-mode="1">白名单模式</span>
+            </div>
+          </div>
         </div>
         <div class="word-toolbar">
           <button id="siteBlockSelectAll" class="btn btn-secondary" type="button">全选</button>
           <button id="siteBlockDeleteSelected" class="btn btn-delete" type="button" disabled>删除选中</button>
           <div class="word-search">
-            <input id="siteBlockSearchInput" type="text" placeholder="搜索黑名单网站" aria-label="搜索黑名单网站">
+            <input id="siteBlockSearchInput" type="text" placeholder="搜索网站规则" aria-label="搜索网站规则">
           </div>
         </div>
         <div id="siteBlockList" class="words-list"></div>
         <div class="word-io">
-          <button id="siteBlockImportBtn" class="btn btn-secondary" type="button">导入</button>
-          <button id="siteBlockExportBtn" class="btn btn-secondary" type="button">导出</button>
+          <button id="siteBlockImportBtn" class="btn btn-secondary" type="button">输入或导入网站列表</button>
+          <button id="siteBlockExportBtn" class="btn btn-secondary" type="button">导出名单到文件</button>
           <input id="siteBlockImportInput" type="file" accept=".txt" style="display: none;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="pageSiteRule">
+    <div class="page-header">
+      <button class="page-back-btn" id="siteRuleBack" type="button" aria-label="返回">←</button>
+      <div class="page-title" id="siteRulePageTitle">添加黑名单规则</div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-content">
+        <div class="word-tip" role="note">
+          <span class="word-tip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path fill="currentColor" d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.75V18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.25A7 7 0 0 0 12 2zm3 11.65-1 .58V17h-4v-2.77l-1-.58A5 5 0 1 1 15 13.65z"/>
+            </svg>
+          </span>
+          <span class="word-tip-text" id="siteRuleTipText">输入域名后，选择禁用范围并添加到网站黑名单。</span>
+        </div>
+
+        <div class="word-tip" role="note">
+          <span class="word-tip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path fill="currentColor" d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.75V18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.25A7 7 0 0 0 12 2zm3 11.65-1 .58V17h-4v-2.77l-1-.58A5 5 0 1 1 15 13.65z"/>
+            </svg>
+          </span>
+          <span class="word-tip-text" id="RuleInfoTip">提示：*.q2019.com 包含了 a.q2019.com、b.q2019.com、a.b.q2019.com</span>
+        </div>
+        <div class="site-rule-form">
+          <label class="site-rule-label" for="siteRuleHostInput">域名</label>
+          <input id="siteRuleHostInput" class="site-rule-input" type="text" placeholder="例如：a.b.c.d.com" aria-label="要禁用的域名">
+        </div>
+        <div class="site-rule-options" id="siteRuleOptions">
+          <label class="site-rule-option">
+            <input type="radio" name="siteRuleMode" value="parent-wildcard">
+            <span id="siteRuleParentLabel">在 *.example.com 中禁用</span>
+          </label>
+          <label class="site-rule-option">
+            <input type="radio" name="siteRuleMode" value="exact" checked>
+            <span id="siteRuleExactLabel">在 example.com 中禁用</span>
+          </label>
+          <label class="site-rule-option">
+            <input type="radio" name="siteRuleMode" value="subdomain-wildcard">
+            <span id="siteRuleSubdomainLabel">在 *.example.com 中禁用</span>
+          </label>
+        </div>
+        <div class="site-rule-footer">
+          <button id="siteRuleAddBtn" class="btn btn-secondary" type="button">添加规则</button>
+          <div id="siteRuleStatus" class="site-rule-status" aria-live="polite"></div>
         </div>
       </div>
     </div>
@@ -612,6 +978,30 @@
             <span class="label-text">感谢您使用我的插件( • ̀ω•́ )✧</span>
           </label>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="siteBlockImportModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>导入网站规则</h3>
+        <button class="modal-close" id="siteBlockImportModalClose" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="site-import-choice">
+          <button id="siteBlockImportFromFileBtn" class="btn btn-secondary" type="button">从文件导入</button>
+          <button id="siteBlockImportManualBtn" class="btn btn-secondary" type="button">手动输入</button>
+        </div>
+        <div id="siteBlockImportFilePane" class="site-import-pane">
+          <div class="setting-hint site-import-hint">支持 txt 文件，建议一行一个域名规则。</div>
+          <button id="siteBlockChooseFileBtn" class="btn btn-primary" type="button">选择文件</button>
+        </div>
+        <div id="siteBlockImportManualPane" class="site-import-pane" style="display: none;">
+          <textarea id="siteBlockManualInput" class="site-import-textarea" placeholder="每行一个域名&#10;示例：&#10;example.com&#10;*.google.com&#10;sub.domain.com"></textarea>
+          <button id="siteBlockManualImportConfirm" class="btn btn-primary" type="button">导入输入内容</button>
+        </div>
+        <div id="siteBlockImportStatus" class="site-import-status" aria-live="polite"></div>
       </div>
     </div>
   </div>
@@ -684,6 +1074,6 @@
 
 </div>
 
-<script src="popup.js"></script>
+<script type="module" src="popup.js"></script>
 </body>
 </html>
