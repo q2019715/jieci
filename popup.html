@@ -42,11 +42,53 @@
 
 <div class="container">
   <div class="page is-active" id="pageMain">
-    <h1 id="titleLink">截词英语学习助手</h1>
+    <div class="main-search-entry">
+      <a
+        id="mainHelpLink"
+        class="main-help-icon-btn"
+        href="https://jieci.top/help.html"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="打开帮助文档"
+        title="帮助文档"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+          <path d="M3.5 6.5c0-1.1.9-2 2-2h5.3c.64 0 1.25.25 1.7.7l.5.5.5-.5c.45-.45 1.06-.7 1.7-.7h3.3c1.1 0 2 .9 2 2v11.5c0 .55-.45 1-1 1h-4.3c-.64 0-1.25.25-1.7.7l-.5.5-.5-.5c-.45-.45-1.06-.7-1.7-.7H4.5c-.55 0-1-.45-1-1V6.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+          <path d="M12.5 6.2v12.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+        </svg>
+      </a>
+      <div class="main-search-input-wrap">
+        <input id="mainSearchInput" type="text" placeholder="搜索单词或设置" aria-label="搜索设置或词条">
+        <button id="mainSearchButton" class="main-search-icon-btn" type="button" aria-label="搜索">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+            <circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="2"></circle>
+            <path d="M16 16L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+          </svg>
+        </button>
+      </div>
+      <button
+        id="mainSyncPlaceholderBtn"
+        class="main-help-icon-btn"
+        type="button"
+        aria-label="同步"
+        title="同步"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+          <path d="M20 7v4h-4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+          <path d="M4 17v-4h4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+          <path d="M18.2 10.3A7 7 0 0 0 6.8 7.8L4.5 10" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"></path>
+          <path d="M5.8 13.7A7 7 0 0 0 17.2 16.2l2.3-2.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"></path>
+        </svg>
+      </button>
+    </div>
+    <div id="mainSearchPanel" class="main-search-panel is-hidden">
+      <div id="mainSearchResultMeta" class="setting-hint search-result-meta">输入关键词后开始搜索</div>
+      <div id="mainSearchResults" class="search-results"></div>
+    </div>
 
-    <div class="control-section">
+    <div class="control-section" id="displayModeQuickCard">
       <label class="setting-label">
-        <span class="label-text">插件工作模式</span>
+        <span class="label-text" id="displayModeLabelText">插件工作模式</span>
         <button class="help-icon" type="button" aria-label="帮助">
           ?
           <span class="help-tooltip">这个选项控制插件改写内容的模式。<br>
@@ -68,6 +110,9 @@
           <span class="mode-label" data-mode="3">替换</span>
         </div>
       </div>
+      <button id="openQuickAnnotationBehaviorPageBtn" class="site-block-corner-btn" type="button" aria-label="打开语言模式快捷设置">
+        ◿
+      </button>
     </div>
 
     <!-- AI Settings Section -->
@@ -86,8 +131,7 @@
             </button>
           </div>
         </div>
-    
-    
+
         <div class="quick-grid">
       <button id="quickFavorites" class="quick-tile" type="button">
         <span class="quick-icon" aria-hidden="true">
@@ -132,6 +176,81 @@
     </div>
   </div>
 
+  <div class="page" id="pageQuickAnnotationBehavior">
+    <div class="page-header">
+      <button class="page-back-btn" id="quickAnnotationBehaviorBack" type="button" aria-label="返回">←</button>
+      <div class="page-title">中英文网页标注模式独立设置</div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-content settings-list">
+        <div class="word-tip" role="note" aria-live="polite">
+          <span class="word-tip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path fill="currentColor" d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.75V18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.25A7 7 0 0 0 12 2zm3 11.65-1 .58V17h-4v-2.77l-1-.58A5 5 0 1 1 15 13.65z"/>
+            </svg>
+          </span>
+          <span class="word-tip-text">通过本设置，可以让插件分别在中文网页和英文网页下 处于不同的标注模式。<br>举个例子，启用本功能后，可以将插件设置为，在中文的网页上 插件以替换模式运行，而英文
+          网页下 插件以标注模式运行。<br>
+          </span>
+        </div>
+        <div class="setting-item stacked">
+          <label class="setting-label">
+            <span class="label-text">中英网页标注模式独立设置开关</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip">启用本开关后，才可以分别设置插件在中文或英文网页下单独的工作模式</span>
+            </button>
+          </label>
+          <div class="mode-slider-container quick-annotation-slider">
+            <input type="range" id="quickSplitModeSlider" min="0" max="1" step="1" value="0" aria-label="中英文标注模式分开设置">
+            <div class="mode-slider-track">
+              <div class="mode-slider-thumb"></div>
+            </div>
+            <div class="mode-labels">
+              <span class="mode-label" data-mode="0">关闭</span>
+              <span class="mode-label" data-mode="1">开启</span>
+            </div>
+          </div>
+        </div>
+        <div class="setting-item stacked">
+          <label class="setting-label">
+            <span class="label-text">中文网页下插件的标注模式</span>
+          </label>
+          <div class="mode-slider-container quick-annotation-slider">
+            <input type="range" id="quickDisplayModeCnSlider" min="0" max="3" step="1" value="0" aria-label="中文网页标注模式">
+            <div class="mode-slider-track">
+              <div class="mode-slider-thumb"></div>
+            </div>
+            <div class="mode-labels">
+              <span class="mode-label" data-mode="0">关闭</span>
+              <span class="mode-label" data-mode="1">下划线</span>
+              <span class="mode-label" data-mode="2">标注</span>
+              <span class="mode-label" data-mode="3">替换</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item stacked">
+          <label class="setting-label">
+            <span class="label-text">英文网页下插件的标注模式</span>
+          </label>
+          <div class="mode-slider-container quick-annotation-slider">
+            <input type="range" id="quickDisplayModeEnSlider" min="0" max="3" step="1" value="0" aria-label="英文网页标注模式">
+            <div class="mode-slider-track">
+              <div class="mode-slider-thumb"></div>
+            </div>
+            <div class="mode-labels">
+              <span class="mode-label" data-mode="0">关闭</span>
+              <span class="mode-label" data-mode="1">下划线</span>
+              <span class="mode-label" data-mode="2">标注</span>
+              <span class="mode-label" data-mode="3">替换</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="pageVocab">
     <div class="page-header">
       <button class="page-back-btn" id="vocabBack" type="button" aria-label="返回">←</button>
@@ -171,7 +290,7 @@
         <span class="row-title">段落内标注行为设置</span>
         <span class="row-arrow" aria-hidden="true">›</span>
       </button>
-      <button class="settings-row" id="searchNav" type="button">
+      <button class="settings-row" id="wordCardSettingsNav" type="button">
         <span class="row-title">单词卡片设置</span>
         <span class="row-arrow" aria-hidden="true">›</span>
       </button>
@@ -191,10 +310,165 @@
         <span class="row-title">网站黑白名单设置</span>
         <span class="row-arrow" aria-hidden="true">›</span>
       </button>
+      <button class="settings-row" id="syncNav" type="button">
+        <span class="row-title">插件数据同步设置</span>
+        <span class="row-arrow" aria-hidden="true">›</span>
+      </button>
       <button class="settings-row" id="aboutNav" type="button">
         <span class="row-title">关于</span>
         <span class="row-arrow" aria-hidden="true">›</span>
       </button>
+    </div>
+  </div>
+
+  <div class="page" id="pageSync">
+    <div class="page-header">
+      <button class="page-back-btn" id="syncBack" type="button" aria-label="返回">←</button>
+      <div class="page-title">数据同步设置</div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-content settings-list">
+        <div class="setting-item smart-toggle-row">
+          <div class="setting-main">
+            <label for="syncEnabledToggle" class="setting-label">
+              <span class="label-text">启用插件数据云同步功能</span>
+              <button class="help-icon" type="button" aria-label="帮助">
+                ?
+                <span class="help-tooltip">开启插件跨设备同步配置文件能力</span>
+              </button>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="syncEnabledToggle">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+        <div id="syncAdvancedOptions">
+        <div class="setting-item stacked">
+          <label class="setting-label">
+            <span class="label-text">云端版本状态</span>
+          </label>
+          <div id="syncStatusText" class="setting-hint">尚未同步</div>
+        </div>
+        <div class="setting-item stacked">
+          <label class="setting-label">
+            <span class="label-text">同步容量占用</span>
+            <button class="help-icon" type="button" aria-label="帮助">
+              ?
+              <span class="help-tooltip">浏览器对于某一个账号/插件 的同步数据有大小。超出这个大小之后，将无法进行同步。 <br>
+                大约能同步800-900个英文单词。 <br>
+                此配额是浏览器厂商的限制，非本插件的限制，本插件无法进行增加<br>
+
+              </span>
+            </button>
+          </label>
+
+          <div id="syncUsageBars" class="sync-usage-bars">
+            <div class="sync-usage-row">
+              <div class="sync-usage-meta">
+                <span class="sync-usage-label">部分设置项目</span>
+                <span id="syncUsageSettingsText" class="sync-usage-value">0%</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div id="syncUsageSettingsBar" class="progress-bar-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+            <div class="sync-usage-row">
+              <div class="sync-usage-meta">
+                <span class="sync-usage-label">屏蔽词条</span>
+                <span id="syncUsageBlockedText" class="sync-usage-value">0%</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div id="syncUsageBlockedBar" class="progress-bar-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+            <div class="sync-usage-row">
+              <div class="sync-usage-meta">
+                <span class="sync-usage-label">收藏词</span>
+                <span id="syncUsageFavoritesText" class="sync-usage-value">0%</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div id="syncUsageFavoritesBar" class="progress-bar-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+            <div class="sync-usage-row">
+              <div class="sync-usage-meta">
+                <span class="sync-usage-label">网站规则</span>
+                <span id="syncUsageSiteRulesText" class="sync-usage-value">0%</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div id="syncUsageSiteRulesBar" class="progress-bar-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="setting-item stacked">
+          <div class="sync-actions">
+            <button id="syncPushNowBtn" class="btn btn-primary" type="button">立即尝试将数据发送到云端</button>
+          </div>
+        </div>
+        <div class="setting-item stacked">
+          <div class="sync-actions">
+            <button id="syncPullNowBtn" class="btn btn-secondary" type="button">立即尝试将数据从云端下载</button>
+          </div>
+        </div>
+        <div class="setting-item stacked">
+          <button id="syncConflictEntryBtn" class="btn btn-secondary" type="button">同步出现问题导致数据丢失？点此查看可能的解决方案</button>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="syncEnableConfirmModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>启用同步功能确认</h3>
+        <button class="modal-close" id="syncEnableConfirmModalClose" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="setting-hint sync-confirm-intro">
+          此功能正在测试，请您务必阅读下面的项目，并全选复选框，才能启用本功能。
+        </div>
+        <div id="syncEnableConfirmChecks" class="sync-confirm-checks">
+          <label class="sync-confirm-item">
+            <input id="syncConfirmCheck1" type="checkbox">
+            <span>我已经了解，本功能通过浏览器的 storage.sync 功能，相关数据储存在浏览器厂商服务器中，跟随您登录的浏览器厂商账号（未登录账号时，同步功能无效），不会储存在截词英语学习助手的服务器中。</span>
+          </label>
+          <label class="sync-confirm-item">
+            <input id="syncConfirmCheck2" type="checkbox">
+            <span>我已经了解，同步功能不是实时同步，同步周期取决于浏览器策略，本功能不能等同于备份功能。当您在设备上删除本插件时，同步数据可能会被浏览器删除，插件作者无法完全保证本功能不会出错。</span>
+          </label>
+          <label class="sync-confirm-item">
+            <input id="syncConfirmCheck3" type="checkbox">
+            <span>我已经了解，同步功能将会加载储存在云端的最新一份配置文件。如果您在某个设备意外清空数据后又进行了同步，可能导致其他设备上的插件数据也被覆盖。</span>
+          </label>
+        </div>
+        <div class="sync-confirm-actions">
+          <button id="syncEnableConfirmCancelBtn" class="btn btn-secondary" type="button">取消</button>
+          <button id="syncEnableConfirmAcceptBtn" class="btn btn-primary" type="button">确认启用</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="syncConflictModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>查看备份</h3>
+        <button class="modal-close" id="syncConflictModalClose" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="setting-hint">
+          当云端的数据需要覆盖本地数据的时候，插件保留一份本地数据的备份，但是这个备份只会存在24个小时，且24小时内只会储存一份。
+        </div>
+        <div class="setting-hint" role="separator" aria-label="分隔符">----------------</div>
+        <div id="syncConflictStatusText" class="setting-hint">正在读取冲突备份状态...</div>
+        <div class="sync-confirm-actions">
+          <button id="syncConflictCancelBtn" class="btn btn-secondary" type="button">取消</button>
+          <button id="syncConflictRestoreBtn" class="btn btn-primary" type="button">恢复上次冲突前数据</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -301,6 +575,10 @@
         <div class="setting-divider" role="separator" aria-label="标注行为设置">
           <span>标注行为设置</span>
         </div>
+        <button class="settings-row" id="annotationQuickLanguageModeNav" type="button">
+          <span class="row-title">分语言设置网站标注模式</span>
+          <span class="row-arrow" aria-hidden="true">›</span>
+        </button>
         <div class="setting-item mode-setting">
           <label class="setting-label">
             <span class="label-text">标注模式设置</span>
@@ -668,9 +946,9 @@
 
 
 
-  <div class="page" id="pageSearch">
+  <div class="page" id="pageWordCardSettings">
     <div class="page-header">
-      <button class="page-back-btn" id="searchBack" type="button" aria-label="返回">←</button>
+      <button class="page-back-btn" id="wordCardSettingsBack" type="button" aria-label="返回">←</button>
       <div class="page-title">单词卡片设置</div>
     </div>
     <div class="settings-section">
@@ -768,6 +1046,65 @@
     </div>
   </div>
 
+  <div class="page" id="pageWordInfo">
+    <div class="page-header">
+      <button class="page-back-btn" id="wordInfoBack" type="button" aria-label="返回">←</button>
+      <div class="page-title">词条详情</div>
+    </div>
+    <div class="wordinfo-sheet">
+      <div class="wordinfo-card" id="wordInfoContent">
+        <div id="wordInfoEmpty" class="wordinfo-empty">请选择一个词条</div>
+        <div class="wordinfo-primary">
+          <div class="wordinfo-primary-top">
+            <div id="wordInfoWord" class="wordinfo-word">-</div>
+            <div class="wordinfo-actions">
+              <button id="wordInfoSearchBtn" class="wordinfo-speak-btn" type="button" aria-label="外部查词">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                  <circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.8"></circle>
+                  <path d="M16 16L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                </svg>
+              </button>
+              <button id="wordInfoFavoriteBtn" class="wordinfo-speak-btn" type="button" aria-label="收藏词条">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                  <path fill="currentColor" d="M12 3l2.9 6 6.6.9-4.8 4.4 1.2 6.5L12 17.8 6.1 20.8l1.2-6.5L2.5 9.9l6.6-.9L12 3z"></path>
+                </svg>
+              </button>
+              <button id="wordInfoBlockBtn" class="wordinfo-speak-btn" type="button" aria-label="屏蔽词条">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                  <path fill="currentColor" d="M19 6h-3.5l-1-1h-5l-1 1H5v2h14V6zM6 9v11c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V9H6z"></path>
+                </svg>
+              </button>
+              <button id="wordInfoSpeakBtn" class="wordinfo-speak-btn" type="button" aria-label="朗读词条">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                  <path d="M4 10v4h4l5 4V6L8 10H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+                  <path d="M16 9.5a4 4 0 0 1 0 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  <path d="M18.5 7a7.5 7.5 0 0 1 0 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="wordInfoPhonetics" class="wordinfo-phonetics">-</div>
+        </div>
+        <section class="wordinfo-section wordinfo-section-meanings">
+          <div class="wordinfo-section-title">词义</div>
+          <div id="wordInfoMeanings" class="wordinfo-block">-</div>
+        </section>
+        <section class="wordinfo-section">
+          <div class="wordinfo-section-title">短语</div>
+          <div id="wordInfoPhrases" class="wordinfo-block">-</div>
+        </section>
+        <section class="wordinfo-section wordinfo-section-examples">
+          <div class="wordinfo-section-title">例句</div>
+          <div id="wordInfoExamples" class="wordinfo-block">-</div>
+        </section>
+        <section class="wordinfo-section wordinfo-section-sources">
+          <div class="wordinfo-section-title">来源</div>
+          <div id="wordInfoSources" class="wordinfo-block">-</div>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="pageBlocked">
     <div class="page-header">
       <button class="page-back-btn" id="blockedBack" type="button" aria-label="返回">←</button>
@@ -792,7 +1129,7 @@
         </div>
         <div id="blockedList" class="words-list"></div>
         <div class="word-io">
-          <button id="blockedImportBtn" class="btn btn-secondary" type="button">导入</button>
+          <button id="blockedImportBtn" class="btn btn-secondary" type="button">输入或导入单词列表</button>
           <button id="blockedExportBtn" class="btn btn-secondary" type="button">导出</button>
           <input id="blockedImportInput" type="file" accept=".txt" style="display: none;">
         </div>
@@ -824,7 +1161,7 @@
         </div>
         <div id="favoritesList" class="words-list"></div>
         <div class="word-io">
-          <button id="favoritesImportBtn" class="btn btn-secondary" type="button">导入</button>
+          <button id="favoritesImportBtn" class="btn btn-secondary" type="button">输入或导入单词列表</button>
           <button id="favoritesExportBtn" class="btn btn-secondary" type="button">导出</button>
           <input id="favoritesImportInput" type="file" accept=".txt" style="display: none;">
         </div>
@@ -892,7 +1229,7 @@
               <path fill="currentColor" d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.75V18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.25A7 7 0 0 0 12 2zm3 11.65-1 .58V17h-4v-2.77l-1-.58A5 5 0 1 1 15 13.65z"/>
             </svg>
           </span>
-          <span class="word-tip-text" id="siteRuleTipText">输入域名后，选择禁用范围并添加到网站黑名单。</span>
+          <span class="word-tip-text" id="siteRuleTipText">选择将哪些网址（可以多选）添加到插件停止标记的列表</span>
         </div>
 
         <div class="word-tip" role="note">
@@ -901,7 +1238,7 @@
               <path fill="currentColor" d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.75V18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.25A7 7 0 0 0 12 2zm3 11.65-1 .58V17h-4v-2.77l-1-.58A5 5 0 1 1 15 13.65z"/>
             </svg>
           </span>
-          <span class="word-tip-text" id="RuleInfoTip">提示：*.q2019.com 包含了 a.q2019.com、b.q2019.com、a.b.q2019.com</span>
+          <span class="word-tip-text" id="RuleInfoTip">提示：*.q2019.com 包含了 a.q2019.com、b.q2019.com、a.b.q2019.com，但是不包含q2019.com</span>
         </div>
         <div class="site-rule-form">
           <label class="site-rule-label" for="siteRuleHostInput">域名</label>
@@ -909,15 +1246,15 @@
         </div>
         <div class="site-rule-options" id="siteRuleOptions">
           <label class="site-rule-option">
-            <input type="radio" name="siteRuleMode" value="parent-wildcard">
+            <input type="checkbox" name="siteRuleMode" value="parent-wildcard">
             <span id="siteRuleParentLabel">在 *.example.com 中禁用</span>
           </label>
           <label class="site-rule-option">
-            <input type="radio" name="siteRuleMode" value="exact" checked>
+            <input type="checkbox" name="siteRuleMode" value="exact" checked>
             <span id="siteRuleExactLabel">在 example.com 中禁用</span>
           </label>
           <label class="site-rule-option">
-            <input type="radio" name="siteRuleMode" value="subdomain-wildcard">
+            <input type="checkbox" name="siteRuleMode" value="subdomain-wildcard">
             <span id="siteRuleSubdomainLabel">在 *.example.com 中禁用</span>
           </label>
         </div>
@@ -982,13 +1319,60 @@
     </div>
   </div>
 
+  <div id="blockedImportModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>导入屏蔽词</h3>
+        <button class="modal-close" id="blockedImportModalClose" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="site-import-question">请问您想要从哪里导入屏蔽词列表？</div>
+        <div class="site-import-choice">
+          <button id="blockedImportFromFileBtn" class="btn btn-secondary" type="button">从文件导入</button>
+          <button id="blockedImportManualBtn" class="btn btn-secondary" type="button">手动输入</button>
+        </div>
+        <div id="blockedImportFilePane" class="site-import-pane">
+          <div class="setting-hint site-import-hint">支持 txt 文件，建议一行一个单词。</div>
+          <button id="blockedChooseFileBtn" class="btn btn-primary" type="button">选择文件</button>
+        </div>
+        <div id="blockedImportManualPane" class="site-import-pane" style="display: none;">
+          <textarea id="blockedManualInput" class="site-import-textarea" placeholder="支持换行、空格、逗号分隔&#10;示例：&#10;apple&#10;banana, orange"></textarea>
+          <button id="blockedManualImportConfirm" class="btn btn-primary" type="button">导入输入的内容</button>
+        </div>
+        <div id="blockedImportStatus" class="site-import-status" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="favoritesImportModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>导入收藏词</h3>
+        <button class="modal-close" id="favoritesImportModalClose" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="site-import-question">请问您想要从哪里导入收藏词列表？</div>
+        <div class="site-import-choice">
+          <button id="favoritesImportFromFileBtn" class="btn btn-secondary" type="button">从文件导入</button>
+          <button id="favoritesImportManualBtn" class="btn btn-secondary" type="button">手动输入</button>
+        </div>
+        <div id="favoritesImportManualPane" class="site-import-pane" style="display: none;">
+          <textarea id="favoritesManualInput" class="site-import-textarea" placeholder="支持换行、空格、逗号分隔&#10;示例：&#10;apple&#10;banana, orange"></textarea>
+          <button id="favoritesManualImportConfirm" class="btn btn-primary" type="button">导入输入的内容</button>
+        </div>
+        <div id="favoritesImportStatus" class="site-import-status" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="siteBlockImportModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>导入网站规则</h3>
+        <h3>导入网站列表</h3>
         <button class="modal-close" id="siteBlockImportModalClose" type="button">&times;</button>
       </div>
       <div class="modal-body">
+        <div class="site-import-question">请问您想要从哪里导入网站列表？</div>
         <div class="site-import-choice">
           <button id="siteBlockImportFromFileBtn" class="btn btn-secondary" type="button">从文件导入</button>
           <button id="siteBlockImportManualBtn" class="btn btn-secondary" type="button">手动输入</button>
@@ -999,7 +1383,7 @@
         </div>
         <div id="siteBlockImportManualPane" class="site-import-pane" style="display: none;">
           <textarea id="siteBlockManualInput" class="site-import-textarea" placeholder="每行一个域名&#10;示例：&#10;example.com&#10;*.google.com&#10;sub.domain.com"></textarea>
-          <button id="siteBlockManualImportConfirm" class="btn btn-primary" type="button">导入输入内容</button>
+          <button id="siteBlockManualImportConfirm" class="btn btn-primary" type="button">导入输入的内容</button>
         </div>
         <div id="siteBlockImportStatus" class="site-import-status" aria-live="polite"></div>
       </div>

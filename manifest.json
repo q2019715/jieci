@@ -1,7 +1,7 @@
-﻿{
+{
     "manifest_version":  3,
     "name":  "__MSG_appName__",
-    "version":  "1.2.0",
+    "version":  "1.3.0",
     "description":  "__MSG_appDescription__",
     "permissions":  [
                         "storage",
@@ -18,16 +18,21 @@
     "content_scripts":  [
                             {
                                 "matches":  [
-                                                "\u003call_urls\u003e"
+                                                "<all_urls>"
                                             ],
                                 "js":  [
+                                           "content_js/wordtools.js",
+                                           "content_js/wordlist-store.js",
+                                           "content_js/site-check.js",
+                                           "content_js/ai.js",
+                                           "content_js/tooltip.js",
+                                           "content_js/annotation-engine.js",
                                            "content.js"
                                        ],
                                 "css":  [
                                             "content-styles.css"
                                         ],
-                                "run_at":  "document_idle",
-                                "type":  "module"
+                                "run_at":  "document_idle"
                             }
                         ],
     "background":  {
@@ -45,7 +50,7 @@
                                                            "vendor/models/**/*"
                                                        ],
                                          "matches":  [
-                                                         "\u003call_urls\u003e"
+                                                         "<all_urls>"
                                                      ]
                                      }
                                  ],
@@ -56,3 +61,5 @@
               },
     "default_locale":  "zh_CN"
 }
+
+
